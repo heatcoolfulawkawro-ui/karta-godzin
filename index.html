@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Karta godzin — Paweł Fuławka</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#12181d; --panel:#1b232a; --panel2:#212b33; --line:#2c3841;
+    --ink:#e8edf1; --ink-dim:#8fa0ab; --amber:#e8a33d; --green:#4caf7d;
+    --red:#d9695f; --blue:#5b9bd5; --weekend:#26313a; --urlop:#2c3626; --radius:10px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',Roboto,Arial,sans-serif; padding-bottom:130px; }
+  header{ position:sticky; top:0; z-index:5; background:linear-gradient(180deg,#151c22 0%, #12181d 100%); border-bottom:1px solid var(--line); padding:12px 16px 8px; }
+  header h1{ margin:0 0 2px; font-size:16px; font-weight:700; }
+  header .who{ color:var(--ink-dim); font-size:12px; margin-bottom:8px; }
+  .monthbar{ display:flex; align-items:center; gap:8px; }
+  .monthbar button{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); width:32px; height:32px; border-radius:8px; font-size:16px; }
+  .monthbar .label{ flex:1; text-align:center; font-weight:600; font-size:14.5px; text-transform:capitalize; }
+  .tabs{ display:flex; gap:6px; margin-top:10px; }
+  .tabs button{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:8px 4px; border-radius:8px; font-size:12.5px; font-weight:600; }
+  .tabs button.active{ background:var(--amber); color:#20140a; border-color:var(--amber); }
+  .importrow{ margin-top:8px; }
+  .importlabel{ font-size:11px; color:var(--ink-dim); margin-bottom:5px; }
+  .importrow input[type=file]{ width:100%; color:var(--ink-dim); font-size:11.5px; }
+  .importrow input[type=file]::-webkit-file-upload-button{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); padding:6px 10px; border-radius:7px; font-size:11.5px; margin-right:8px; }
+  .cloudtag{ font-size:9.5px; color:var(--ink-dim); text-align:center; margin-top:4px; }
+
+  .summarybar{ margin-top:8px; }
+  .summarybar .top{ display:flex; gap:8px; }
+  .summarybar .box{ flex:1; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:7px 8px; text-align:center; }
+  .summarybar .box .v{ font-size:16px; font-weight:700; color:var(--amber); }
+  .summarybar .box .l{ font-size:9.5px; color:var(--ink-dim); margin-top:1px; }
+  .summarybar .toggle{ text-align:center; font-size:11px; color:var(--ink-dim); margin-top:6px; }
+  .detail{ display:none; margin-top:8px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
+  .detail.open{ display:block; }
+  .detail-row{ display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:12.5px; border-bottom:1px solid var(--line); }
+  .detail-row:last-child{ border-bottom:none; }
+  .detail-row label{ display:flex; align-items:center; gap:6px; color:var(--ink); }
+  .detail-row .val{ font-weight:700; }
+  .detail-row .hint{ color:var(--ink-dim); font-size:10px; }
+  .detail-row input[type=checkbox]{ width:15px; height:15px; }
+  .detail-row input[type=number]{ width:56px; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:3px 5px; text-align:center; }
+  .bilans.pos{ color:var(--green); } .bilans.neg{ color:var(--red); }
+
+  main{ padding:10px 10px 0; }
+  .day{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; }
+  .day.weekend{ background:var(--weekend); }
+  .day.urlop{ background:var(--urlop); }
+  .day.empty{ opacity:.72; }
+  .day-head{ display:flex; align-items:center; gap:10px; padding:9px 12px; }
+  .day-num{ width:30px; text-align:center; font-weight:700; font-size:15px; }
+  .day-name{ width:32px; font-size:11px; color:var(--ink-dim); text-transform:uppercase; }
+  .day-desc-preview{ flex:1; font-size:12.5px; color:var(--ink-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .day-hours{ font-size:13px; font-weight:700; color:var(--green); min-width:44px; text-align:right; }
+  .day-hours.zero{ color:var(--ink-dim); font-weight:400; }
+  .day-hours.urloptag{ color:#a8c98a; font-size:11.5px; }
+  .chev{ color:var(--ink-dim); font-size:12px; width:14px; text-align:center; }
+  .day.open .chev{ transform:rotate(90deg); }
+  .day-body{ display:none; padding:2px 12px 12px; border-top:1px solid var(--line); }
+  .day.open .day-body{ display:block; }
+
+  .daytype-switch{ display:flex; gap:6px; margin-top:10px; }
+  .daytype-switch button{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:7px; border-radius:8px; font-size:12px; font-weight:600; }
+  .daytype-switch button.active{ background:var(--blue); color:#0d1a24; border-color:var(--blue); }
+  .daytype-switch button.active.isurlop{ background:#7bb45a; color:#0d1f08; border-color:#7bb45a; }
+
+  .block{ margin-top:14px; padding-top:10px; border-top:1px solid var(--line); }
+  .block:first-of-type{ border-top:none; }
+  .block-kind{ display:flex; gap:6px; margin-bottom:6px; }
+  .block-kind button{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:6px 2px; border-radius:7px; font-size:11px; }
+  .block-kind button.active[data-kind=biuro]{ background:#4d7ea8; color:#eef5fb; border-color:#4d7ea8; }
+  .block-kind button.active[data-kind=obiekt]{ background:#c07a34; color:#fff6ee; border-color:#c07a34; }
+  .block-kind button.active[data-kind=wizja]{ background:#7a5ca8; color:#f5f0fb; border-color:#7a5ca8; }
+  .block-row{ display:flex; align-items:center; gap:8px; }
+  .block-row input[type=time]{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 6px; font-size:14px; min-width:0; }
+  .block-row span.sep{ color:var(--ink-dim); }
+  .block-row .rmblock{ background:none; border:none; color:var(--red); font-size:16px; padding:0 4px; }
+  .wraptag{ display:inline-block; margin-top:4px; font-size:10px; color:var(--amber); }
+  .block-komentarz{ width:100%; margin-top:8px; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 8px; font-size:13px; }
+  .block-komentarz::placeholder{ color:#5c6b76; }
+
+  .gapwrap:empty{ display:none; }
+  .gapbox{ margin:10px 0 2px; padding:8px 10px; background:#241d12; border:1px dashed #4a3a1c; border-radius:8px; }
+  .gapbox .gaplabel{ font-size:11px; color:#d8b06a; margin-bottom:6px; }
+  .gaptoggle{ display:flex; background:var(--panel2); border-radius:20px; padding:3px; position:relative; }
+  .gaptoggle button{ flex:1; border:none; background:none; color:var(--ink-dim); font-size:11.5px; padding:6px 4px; border-radius:16px; position:relative; z-index:1; font-weight:600; transition:color .2s; }
+  .gaptoggle button.active{ color:#20140a; }
+  .gaptoggle .knob{ position:absolute; top:3px; bottom:3px; width:calc(50% - 3px); background:var(--amber); border-radius:16px; transition:left .18s ease; left:3px; }
+  .gaptoggle.przerwa .knob{ left:calc(50% + 0px); background:#8fa0ab; }
+
+  .urlop-komentarz{ width:100%; margin-top:12px; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:8px; font-size:13.5px; resize:vertical; min-height:38px; }
+
+  .addblock{ margin-top:12px; background:none; border:1px dashed var(--line); color:var(--ink-dim); width:100%; padding:6px; border-radius:8px; font-size:12px; }
+
+  .urlop-list{ padding:2px 2px; }
+  .urlop-item{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; margin-bottom:8px; }
+  .urlop-item .ui-head{ display:flex; justify-content:space-between; font-size:13px; font-weight:600; margin-bottom:4px; }
+  .urlop-item .ui-comment{ color:var(--ink-dim); font-size:12.5px; }
+  .urlop-empty{ text-align:center; color:var(--ink-dim); font-size:13px; padding:30px 10px; }
+
+  footer{ position:sticky; bottom:0; left:0; right:0; background:#141a1f; border-top:1px solid var(--line); padding:10px 12px calc(24px + env(safe-area-inset-bottom)); display:flex; gap:8px; z-index:5; }
+  footer button{ flex:1; border:none; border-radius:9px; padding:12px 6px; font-size:13.5px; font-weight:600; }
+  #btnExport{ background:var(--amber); color:#20140a; }
+  #btnCopy{ background:var(--panel2); color:var(--ink); border:1px solid var(--line); }
+  #btnClear{ background:var(--panel2); color:var(--red); border:1px solid var(--line); flex:0 0 44px; }
+
+  .savetag{ position:fixed; top:8px; right:12px; font-size:10.5px; color:var(--ink-dim); opacity:0; transition:opacity .3s; z-index:10;}
+  .savetag.show{ opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="savetag" id="savetag">zapisano</div>
+
+<header>
+  <h1>Karta godzin</h1>
+  <div class="who">Paweł Fuławka</div>
+  <div class="monthbar">
+    <button id="prevM">‹</button>
+    <div class="label" id="monthLabel">—</div>
+    <button id="nextM">›</button>
+  </div>
+  <div class="tabs">
+    <button id="tabDays" class="active">Dni pracy</button>
+    <button id="tabUrlopy">Urlopy tego miesiąca</button>
+  </div>
+  <div class="importrow">
+    <div class="importlabel">📥 Importuj ten miesiąc z .xlsx:</div>
+    <input type="file" id="importFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+  </div>
+  <div class="importrow">
+    <button id="btnTestSave" style="width:100%; background:var(--panel2); border:1px dashed var(--line); color:var(--ink-dim); padding:8px; border-radius:8px; font-size:12px;">🔧 Testuj połączenie z Arkuszem</button>
+  </div>
+  <div class="summarybar" id="viewDays">
+    <div class="top">
+      <div class="box"><div class="v" id="sumWorked">0:00</div><div class="l">razem godz.</div></div>
+      <div class="box"><div class="v" id="sumDays">0</div><div class="l">dni z wpisem</div></div>
+      <div class="box"><div class="v bilans" id="sumBilans">0:00</div><div class="l">bilans</div></div>
+    </div>
+    <div class="toggle" id="toggleDetail">Podsumowanie miesiąca ▾</div>
+    <div class="detail" id="detailPanel">
+      <div class="detail-row"><label><input type="checkbox" id="chkBiuro" checked> Biuro</label><span class="val" id="sBiuro">0:00</span></div>
+      <div class="detail-row"><label><input type="checkbox" id="chkObiekt" checked> Obiekt</label><span class="val" id="sObiekt">0:00</span></div>
+      <div class="detail-row"><label><input type="checkbox" id="chkWizja" checked> Wizje lokalne</label><span class="val" id="sWizja">0:00</span></div>
+      <div class="detail-row"><label>🚗 Dojazdy <span class="hint">(zawsze liczone)</span></label><span class="val" id="sDojazd">0:00</span></div>
+      <div class="detail-row"><label>☕ Przerwy <span class="hint">(nie liczone)</span></label><span class="val" id="sPrzerwa">0:00</span></div>
+      <div class="detail-row"><label>Dni robocze (Pn–Pt)</label><span class="val" id="sWorkdays">0</span></div>
+      <div class="detail-row"><label>Norma godzin</label><input type="number" id="inpNorma" step="0.5"></div>
+      <div class="detail-row"><label>🌴 Urlop (dni × 8h)</label><span class="val" id="sUrlopH">0:00</span></div>
+      <div class="detail-row"><label>Do przepracowania</label><span class="val" id="sWymagane">0:00</span></div>
+      <div class="detail-row"><label>Bilans (zaznaczone+dojazd − wymagane)</label><span class="val bilans" id="sBilans2">0:00</span></div>
+    </div>
+  </div>
+</header>
+
+<main id="days"></main>
+<div id="viewUrlopy" class="urlop-list" style="display:none; padding:0 10px;"></div>
+
+<footer>
+  <button id="btnClear" title="Wyczyść miesiąc">🗑</button>
+  <button id="btnCopy">Kopiuj</button>
+  <button id="btnExport">Eksport .xlsx</button>
+</footer>
+
+<script>
+const DAY_NAMES = ['Nd','Pn','Wt','Śr','Czw','Pt','So'];
+const MONTH_NAMES = ['styczeń','luty','marzec','kwiecień','maj','czerwiec','lipiec','sierpień','wrzesień','październik','listopad','grudzień'];
+const KIND_LABEL = {biuro:'🏢 Biuro', obiekt:'🔧 Obiekt', wizja:'👁 Wizja'};
+const KIND_SHORT = {biuro:'Biuro', obiekt:'Obiekt', wizja:'Wizja'};
+
+let today = new Date();
+let curYear = today.getFullYear();
+let curMonth = today.getMonth() + 1;
+let currentTab = 'days';
+let openDay = null;
+
+function storageKey(y,m){ return `karta_godzin_v3_${y}_${m}`; }
+function daysInMonth(y,m){ return new Date(y, m, 0).getDate(); }
+
+function emptyDay(){
+  return { dayType:'praca', urlopKomentarz:'', blocks:[{start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'}] };
+}
+
+function migrateOld(oldArr, n){
+  const arr = [];
+  for(let i=0;i<n;i++){
+    const o = oldArr[i];
+    if(!o){ arr.push(emptyDay()); continue; }
+    if(o.blocks && o.blocks[0] && 'gapAfter' in o.blocks[0]){ arr.push(o); continue; } // already v3
+    // v2 shape: blocks without komentarz/gapAfter, day-level opis
+    let blocks = (o.blocks||[{start:'',end:'',kind:'obiekt'}]).map((b,i2)=>({
+      start:b.start||'', end:b.end||'', kind:b.kind||'obiekt',
+      komentarz: i2===0 ? (o.opis||'') : '',
+      gapAfter:'dojazd'
+    }));
+    if(blocks.length===0) blocks=[{start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'}];
+    arr.push({dayType:o.dayType||'praca', urlopKomentarz:o.urlopKomentarz||'', blocks});
+  }
+  return arr;
+}
+
+// Loads a month from the Google Sheets backend (Apps Script), falling back
+// to the browser's local storage cache if the network call fails.
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby09rSaJwoPPl6KeFn80xCOTiOzYM4EZyKy5XuJ0pBA28-x051wB9HXg_osSqUrjoHA/exec';
+
+async function loadMonth(y,m){
+  const n = daysInMonth(y,m);
+  const key = storageKey(y,m);
+  try{
+    const res = await fetch(`${GAS_URL}?key=${key}`);
+    if(res.ok){
+      const text = await res.text();
+      if(text && text.trim()){
+        localStorage.setItem(key, text);
+        return migrateOld(JSON.parse(text), n);
+      }
+    }
+  }catch(e){ console.warn('brak połączenia z Arkuszem, używam lokalnej kopii:', e); }
+  const raw = localStorage.getItem(key);
+  if(raw){
+    try{ return migrateOld(JSON.parse(raw), n); }catch(e){}
+  }
+  const arr = [];
+  for(let d=1; d<=n; d++) arr.push(emptyDay());
+  return arr;
+}
+
+let monthData = [];
+
+function saveMonth(){
+  const key = storageKey(curYear,curMonth);
+  const json = JSON.stringify(monthData);
+  localStorage.setItem(key, json);
+  cloudMirror(key, json);
+  const tag = document.getElementById('savetag');
+  tag.textContent = 'zapisywanie...';
+  tag.classList.add('show');
+  clearTimeout(saveMonth._t);
+  saveMonth._t = setTimeout(()=>tag.classList.remove('show'), 1200);
+}
+
+async function cloudMirror(key, json){
+  const tag = document.getElementById('savetag');
+  try{
+    await fetch(GAS_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
+      body: JSON.stringify({key, value: json})
+    });
+    tag.textContent = 'zapisano w Arkuszu';
+  }catch(e){
+    tag.textContent = 'zapisano lokalnie (offline)';
+    console.warn('zapis do Arkusza nieudany:', e);
+  }
+}
+
+function timeToMinutes(t){ if(!t) return 0; const [h,m]=t.split(':').map(Number); return h*60+m; }
+function fmtHM(mins){ const s = mins<0?'-':''; mins=Math.abs(Math.round(mins)); return `${s}${Math.floor(mins/60)}:${String(mins%60).padStart(2,'0')}`; }
+function isWeekend(y,m,d){ const wd = new Date(y,m-1,d).getDay(); return wd===0||wd===6; }
+
+// Unwraps a day's blocks into chronological effective minutes, auto-detecting
+// overnight crossings (end <= start rolls to the next day, cascading).
+function computeEffectiveBlocks(blocks){
+  let cursor = 0;
+  return blocks.map(b=>{
+    if(!b.start || !b.end) return {startEff:null,endEff:null,wrappedStart:false,wrappedEnd:false};
+    let s = timeToMinutes(b.start);
+    let wrappedStart=false;
+    while(s < cursor){ s += 1440; wrappedStart=true; }
+    let e = timeToMinutes(b.end);
+    let wrappedEnd=false;
+    while(e <= s){ e += 1440; wrappedEnd=true; }
+    cursor = e;
+    return {startEff:s, endEff:e, wrappedStart, wrappedEnd};
+  });
+}
+
+function dayStats(d){
+  if(d.dayType==='urlop') return {biuro:0,obiekt:0,wizja:0,dojazd:0,przerwa:0,worked:0};
+  const eff = computeEffectiveBlocks(d.blocks);
+  let biuro=0,obiekt=0,wizja=0,dojazd=0,przerwa=0;
+  eff.forEach((b,i)=>{
+    if(b.startEff==null) return;
+    const dur = b.endEff - b.startEff;
+    const kind = d.blocks[i].kind;
+    if(kind==='biuro') biuro+=dur; else if(kind==='wizja') wizja+=dur; else obiekt+=dur;
+  });
+  for(let i=0;i<eff.length-1;i++){
+    if(eff[i].endEff==null || eff[i+1].startEff==null) continue;
+    const gap = eff[i+1].startEff - eff[i].endEff;
+    if(gap<=0) continue;
+    const type = d.blocks[i].gapAfter || 'dojazd';
+    if(type==='przerwa') przerwa+=gap; else dojazd+=gap;
+  }
+  return {biuro,obiekt,wizja,dojazd,przerwa,worked:biuro+obiekt+wizja+dojazd};
+}
+
+function dayWorkedMinutes(d){ return dayStats(d).worked; }
+
+function composeOpis(d){
+  return d.blocks.filter(b=>b.komentarz && b.komentarz.trim()).map(b=>`${KIND_SHORT[b.kind]}: ${b.komentarz.trim()}`).join(' | ');
+}
+
+function workdaysCount(y,m){
+  const n = daysInMonth(y,m);
+  let c=0;
+  for(let d=1; d<=n; d++) if(!isWeekend(y,m,d)) c++;
+  return c;
+}
+
+function loadSettings(){
+  try{ return JSON.parse(localStorage.getItem('karta_godzin_ustawienia')) || {biuro:true,obiekt:true,wizja:true}; }
+  catch(e){ return {biuro:true,obiekt:true,wizja:true}; }
+}
+function saveSettings(s){ localStorage.setItem('karta_godzin_ustawienia', JSON.stringify(s)); }
+let settings = loadSettings();
+
+function monthNormaDefault(){ return workdaysCount(curYear,curMonth) * 8 * 60; }
+function monthNormaOverride(){
+  const meta = monthData._meta;
+  return (meta && meta.normaOverride!=null) ? meta.normaOverride*60 : null;
+}
+function ensureMeta(){ if(!monthData._meta) monthData._meta = {normaOverride:null}; }
+ensureMeta();
+
+function computeTotals(){
+  let biuro=0,obiekt=0,wizja=0,dojazd=0,przerwa=0,urlopDays=0,filledDays=0;
+  const n = daysInMonth(curYear,curMonth);
+  for(let i=0;i<n;i++){
+    const d = monthData[i];
+    if(!d || !d.dayType) continue;
+    if(d.dayType==='urlop'){ urlopDays++; continue; }
+    const st = dayStats(d);
+    biuro+=st.biuro; obiekt+=st.obiekt; wizja+=st.wizja; dojazd+=st.dojazd; przerwa+=st.przerwa;
+    if(st.worked>0) filledDays++;
+  }
+  const worked = biuro+obiekt+wizja+dojazd; // dojazd counts unconditionally
+  const included = (settings.biuro?biuro:0)+(settings.obiekt?obiekt:0)+(settings.wizja?wizja:0)+dojazd;
+  const norma = monthNormaOverride() ?? monthNormaDefault();
+  const urlopH = urlopDays*8*60;
+  const wymagane = Math.max(0, norma - urlopH);
+  const bilans = included - wymagane;
+  return {biuro,obiekt,wizja,dojazd,przerwa,worked,included,norma,urlopH,wymagane,bilans,filledDays,urlopDays};
+}
+
+function updateSummary(){
+  const t = computeTotals();
+  document.getElementById('sumWorked').textContent = fmtHM(t.worked);
+  document.getElementById('sumDays').textContent = t.filledDays;
+  const bilEl = document.getElementById('sumBilans');
+  bilEl.textContent = fmtHM(t.bilans);
+  bilEl.className = 'v bilans ' + (t.bilans>=0?'pos':'neg');
+
+  document.getElementById('sBiuro').textContent = fmtHM(t.biuro);
+  document.getElementById('sObiekt').textContent = fmtHM(t.obiekt);
+  document.getElementById('sWizja').textContent = fmtHM(t.wizja);
+  document.getElementById('sDojazd').textContent = fmtHM(t.dojazd);
+  document.getElementById('sPrzerwa').textContent = fmtHM(t.przerwa);
+  document.getElementById('sWorkdays').textContent = workdaysCount(curYear,curMonth);
+  document.getElementById('sUrlopH').textContent = `${t.urlopDays} d — ${fmtHM(t.urlopH)}`;
+  document.getElementById('sWymagane').textContent = fmtHM(t.wymagane);
+  const bil2 = document.getElementById('sBilans2');
+  bil2.textContent = fmtHM(t.bilans);
+  bil2.className = 'val bilans ' + (t.bilans>=0?'pos':'neg');
+
+  const normaInp = document.getElementById('inpNorma');
+  if(document.activeElement !== normaInp){
+    normaInp.value = (monthNormaOverride() ?? monthNormaDefault())/60;
+  }
+}
+
+function updateDayBadge(dayNum){
+  const d = monthData[dayNum-1];
+  const head = document.querySelector(`.day[data-day="${dayNum}"] .day-head`);
+  if(!head) return;
+  const badge = head.querySelector('.day-hours');
+  const preview = head.querySelector('.day-desc-preview');
+  const cardEl = head.parentElement;
+  if(d.dayType==='urlop'){
+    badge.textContent = 'Urlop';
+    badge.className = 'day-hours urloptag';
+    preview.textContent = d.urlopKomentarz || '(brak komentarza)';
+    cardEl.classList.add('urlop');
+  } else {
+    const mins = dayWorkedMinutes(d);
+    badge.textContent = mins>0 ? fmtHM(mins) : '—';
+    badge.className = 'day-hours' + (mins===0?' zero':'');
+    cardEl.classList.remove('urlop');
+    const wd = new Date(curYear,curMonth-1,dayNum).getDay();
+    const opis = composeOpis(d);
+    preview.textContent = opis || (isWeekend(curYear,curMonth,dayNum) ? (wd===0?'NDZ':'SB') : '');
+  }
+}
+
+// Refresh only the derived bits inside an open day body (wrap tags, gap chips)
+// without touching the live input elements — safe to call after every time change.
+function refreshDayDerived(dayNum){
+  const d = monthData[dayNum-1];
+  if(d.dayType==='urlop') return;
+  const eff = computeEffectiveBlocks(d.blocks);
+
+  d.blocks.forEach((b,i)=>{
+    const tag = document.getElementById(`wraptag-${dayNum}-${i}`);
+    if(!tag) return;
+    const w = eff[i];
+    tag.textContent = (w && (w.wrappedStart || w.wrappedEnd)) ? '🌙 przechodzi na kolejny dzień' : '';
+  });
+
+  for(let i=0;i<d.blocks.length-1;i++){
+    const wrap = document.getElementById(`gapwrap-${dayNum}-${i}`);
+    if(!wrap) continue;
+    const a = eff[i], bnext = eff[i+1];
+    if(!a || !bnext || a.endEff==null || bnext.startEff==null || bnext.startEff - a.endEff <= 0){
+      wrap.innerHTML = '';
+      continue;
+    }
+    const gap = bnext.startEff - a.endEff;
+    const type = d.blocks[i].gapAfter || 'dojazd';
+    wrap.innerHTML = `
+      <div class="gapbox">
+        <div class="gaplabel">Przerwa między przedziałami: ${fmtHM(gap)}</div>
+        <div class="gaptoggle ${type}" data-day="${dayNum}" data-gap="${i}">
+          <div class="knob"></div>
+          <button data-val="dojazd" class="${type==='dojazd'?'active':''}">🚗 Dojazd</button>
+          <button data-val="przerwa" class="${type==='przerwa'?'active':''}">☕ Przerwa</button>
+        </div>
+      </div>`;
+    wrap.querySelectorAll('.gaptoggle button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        d.blocks[i].gapAfter = btn.dataset.val;
+        saveMonth();
+        refreshDayDerived(dayNum);
+        updateDayBadge(dayNum);
+        updateSummary();
+      });
+    });
+  }
+}
+
+function render(){
+  document.getElementById('monthLabel').textContent = `${MONTH_NAMES[curMonth-1]} ${curYear}`;
+  const container = document.getElementById('days');
+  container.innerHTML = '';
+  const n = daysInMonth(curYear,curMonth);
+
+  for(let dayNum=1; dayNum<=n; dayNum++){
+    const d = monthData[dayNum-1];
+    const wd = new Date(curYear, curMonth-1, dayNum).getDay();
+    const el = document.createElement('div');
+    el.className = 'day' + (isWeekend(curYear,curMonth,dayNum) ? ' weekend' : '');
+    el.dataset.day = dayNum;
+    if(openDay===dayNum) el.classList.add('open');
+
+    el.innerHTML = `
+      <div class="day-head">
+        <div class="day-num">${dayNum}</div>
+        <div class="day-name">${DAY_NAMES[wd]}</div>
+        <div class="day-desc-preview"></div>
+        <div class="day-hours"></div>
+        <div class="chev">▸</div>
+      </div>
+      <div class="day-body" id="body-${dayNum}"></div>
+    `;
+    container.appendChild(el);
+    el.querySelector('.day-head').addEventListener('click', () => {
+      const isOpen = el.classList.contains('open');
+      document.querySelectorAll('.day.open').forEach(x=>x.classList.remove('open'));
+      if(!isOpen){ el.classList.add('open'); openDay = dayNum; renderBody(dayNum); }
+      else openDay = null;
+    });
+    updateDayBadge(dayNum);
+    if(openDay===dayNum) renderBody(dayNum);
+  }
+  updateSummary();
+}
+
+function renderBody(dayNum){
+  const d = monthData[dayNum-1];
+  const body = document.getElementById(`body-${dayNum}`);
+  if(!body) return;
+
+  let html = `<div class="daytype-switch">
+    <button data-act="type-praca" class="${d.dayType==='praca'?'active':''}">Praca</button>
+    <button data-act="type-urlop" class="${d.dayType==='urlop'?'active isurlop':''}">Urlop</button>
+  </div>`;
+
+  if(d.dayType==='urlop'){
+    html += `<textarea class="urlop-komentarz" data-field="urlopKomentarz" placeholder="Co robiłem na urlopie — Bari, Hiszpania, lekarz, urząd...">${escapeHtml(d.urlopKomentarz||'')}</textarea>`;
+    body.innerHTML = html;
+    body.querySelectorAll('[data-act^="type-"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        d.dayType = btn.dataset.act === 'type-urlop' ? 'urlop' : 'praca';
+        saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
+      });
+    });
+    const ta = body.querySelector('.urlop-komentarz');
+    ta.addEventListener('input', (e)=>{
+      d.urlopKomentarz = e.target.value;
+      saveMonth();
+      updateDayBadge(dayNum);
+    });
+    return;
+  }
+
+  d.blocks.forEach((b, bi) => {
+    html += `<div class="block" data-block="${bi}">
+      <div class="block-kind">
+        ${['biuro','obiekt','wizja'].map(k=>`<button data-kind="${k}" data-act="kind" class="${b.kind===k?'active':''}">${KIND_LABEL[k]}</button>`).join('')}
+      </div>
+      <div class="block-row">
+        <input type="time" data-field="start" value="${b.start||''}">
+        <span class="sep">–</span>
+        <input type="time" data-field="end" value="${b.end||''}">
+        ${d.blocks.length>1?'<button class="rmblock" data-act="rmblock">✕</button>':''}
+      </div>
+      <div class="wraptag" id="wraptag-${dayNum}-${bi}"></div>
+      <input type="text" class="block-komentarz" data-field="komentarz" placeholder="Co robiłem w tym przedziale..." value="${escapeAttr(b.komentarz||'')}">
+    </div>
+    <div class="gapwrap" id="gapwrap-${dayNum}-${bi}"></div>`;
+  });
+  if(d.blocks.length < 4){
+    html += `<button class="addblock" data-act="addblock">+ kolejny przedział</button>`;
+  }
+
+  body.innerHTML = html;
+
+  body.querySelectorAll('[data-act^="type-"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      d.dayType = btn.dataset.act === 'type-urlop' ? 'urlop' : 'praca';
+      saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
+    });
+  });
+
+  // kind buttons — in-place class toggle only, no rebuild
+  body.querySelectorAll('[data-act="kind"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const blockEl = btn.closest('.block');
+      const bi = parseInt(blockEl.dataset.block);
+      d.blocks[bi].kind = btn.dataset.kind;
+      saveMonth();
+      blockEl.querySelectorAll('.block-kind button').forEach(bb=>bb.classList.toggle('active', bb.dataset.kind===d.blocks[bi].kind));
+      updateDayBadge(dayNum); updateSummary();
+    });
+  });
+
+  body.querySelectorAll('[data-act="rmblock"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const blockEl = btn.closest('.block');
+      const bi = parseInt(blockEl.dataset.block);
+      d.blocks.splice(bi,1);
+      saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
+    });
+  });
+
+  const addBtn = body.querySelector('[data-act="addblock"]');
+  if(addBtn){
+    addBtn.addEventListener('click', ()=>{
+      d.blocks.push({start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'});
+      saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
+    });
+  }
+
+  // time inputs — NEVER rebuild the body here (that was the bug). Only refresh derived chips.
+  body.querySelectorAll('.block-row input[type=time]').forEach(inp=>{
+    inp.addEventListener('change', (e)=>{
+      const blockEl = e.target.closest('.block');
+      const bi = parseInt(blockEl.dataset.block);
+      d.blocks[bi][e.target.dataset.field] = e.target.value;
+      saveMonth();
+      refreshDayDerived(dayNum);
+      updateDayBadge(dayNum); updateSummary();
+    });
+  });
+
+  // per-block comment — save on every keystroke, never rebuild
+  body.querySelectorAll('.block-komentarz').forEach(inp=>{
+    inp.addEventListener('input', (e)=>{
+      const blockEl = e.target.closest('.block');
+      const bi = parseInt(blockEl.dataset.block);
+      d.blocks[bi].komentarz = e.target.value;
+      saveMonth();
+      updateDayBadge(dayNum);
+    });
+  });
+
+  refreshDayDerived(dayNum);
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+function renderUrlopyTab(){
+  const box = document.getElementById('viewUrlopy');
+  const n = daysInMonth(curYear,curMonth);
+  const items = [];
+  for(let dayNum=1; dayNum<=n; dayNum++){
+    const d = monthData[dayNum-1];
+    if(d.dayType==='urlop') items.push({dayNum, komentarz:d.urlopKomentarz});
+  }
+  if(items.length===0){
+    box.innerHTML = `<div class="urlop-empty">Brak dni urlopowych w ${MONTH_NAMES[curMonth-1]}.<br>Otwórz dzień w zakładce "Dni pracy" i przełącz na "Urlop".</div>`;
+    return;
+  }
+  box.innerHTML = items.map(it=>{
+    const wd = new Date(curYear,curMonth-1,it.dayNum).getDay();
+    return `<div class="urlop-item">
+      <div class="ui-head"><span>${it.dayNum} ${MONTH_NAMES[curMonth-1]} (${DAY_NAMES[wd]})</span><span>🌴</span></div>
+      <div class="ui-comment">${escapeHtml(it.komentarz || '(brak komentarza)')}</div>
+    </div>`;
+  }).join('');
+}
+
+function switchTab(tab){
+  currentTab = tab;
+  document.getElementById('tabDays').classList.toggle('active', tab==='days');
+  document.getElementById('tabUrlopy').classList.toggle('active', tab==='urlopy');
+  document.getElementById('viewDays').style.display = tab==='days' ? '' : 'none';
+  document.getElementById('days').style.display = tab==='days' ? '' : 'none';
+  document.getElementById('viewUrlopy').style.display = tab==='urlopy' ? '' : 'none';
+  if(tab==='urlopy') renderUrlopyTab();
+}
+document.getElementById('tabDays').addEventListener('click', ()=>switchTab('days'));
+document.getElementById('tabUrlopy').addEventListener('click', ()=>switchTab('urlopy'));
+
+document.getElementById('toggleDetail').addEventListener('click', ()=>{
+  document.getElementById('detailPanel').classList.toggle('open');
+});
+
+['chkBiuro','chkObiekt','chkWizja'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', (e)=>{
+    const key = id.replace('chk','').toLowerCase();
+    settings[key] = e.target.checked;
+    saveSettings(settings);
+    updateSummary();
+  });
+});
+document.getElementById('chkBiuro').checked = settings.biuro;
+document.getElementById('chkObiekt').checked = settings.obiekt;
+document.getElementById('chkWizja').checked = settings.wizja;
+
+document.getElementById('inpNorma').addEventListener('change', (e)=>{
+  ensureMeta();
+  const v = parseFloat(e.target.value);
+  monthData._meta.normaOverride = isNaN(v) ? null : v;
+  saveMonth();
+  updateSummary();
+});
+
+document.getElementById('prevM').addEventListener('click', async ()=>{
+  curMonth--; if(curMonth<1){curMonth=12; curYear--;}
+  openDay = null;
+  monthData = await loadMonth(curYear, curMonth); ensureMeta();
+  render(); if(currentTab==='urlopy') renderUrlopyTab();
+});
+document.getElementById('nextM').addEventListener('click', async ()=>{
+  curMonth++; if(curMonth>12){curMonth=1; curYear++;}
+  openDay = null;
+  monthData = await loadMonth(curYear, curMonth); ensureMeta();
+  render(); if(currentTab==='urlopy') renderUrlopyTab();
+});
+
+function excelFracToTime(v){
+  if(typeof v !== 'number') return '';
+  let totalMin = Math.round((((v%1)+1)%1) * 1440);
+  const h = Math.floor(totalMin/60), m = totalMin%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+document.getElementById('btnTestSave').addEventListener('click', async ()=>{
+  try{
+    const res = await fetch(GAS_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({key:'TEST', value:'HELLO_' + Date.now()})
+    });
+    const text = await res.text();
+    alert('Status: ' + res.status + '\nOdpowiedź serwera: ' + text + '\n\nJeśli status to 200 i widzisz {"ok":true} — sprawdź w Arkuszu zakładkę "Data", wiersz TEST powinien się pojawić.');
+  }catch(err){
+    alert('Fetch się nie wykonał: ' + err.message + '\n\nTo zwykle oznacza blokadę CORS albo brak sieci.');
+  }
+});
+
+document.getElementById('importFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  if(!confirm(`Zaimportować dane do ${MONTH_NAMES[curMonth-1]} ${curYear}? To nadpisze to, co masz teraz wpisane w tym miesiącu w aplikacji.`)){
+    e.target.value=''; return;
+  }
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const n = daysInMonth(curYear,curMonth);
+    const arr = [];
+    for(let i=0;i<n;i++){
+      const r = 3+i;
+      const get = (col)=> sheet[`${col}${r}`];
+      const pairs = [[get('B'),get('C')],[get('D'),get('E')],[get('F'),get('G')]];
+      const blocks = [];
+      pairs.forEach(([s,en])=>{
+        if(s && en && typeof s.v==='number' && typeof en.v==='number'){
+          blocks.push({start:excelFracToTime(s.v), end:excelFracToTime(en.v), kind:'obiekt', komentarz:'', gapAfter:'dojazd'});
+        }
+      });
+      const iCell = get('I');
+      const opisText = (iCell && iCell.v!=null) ? String(iCell.v).trim() : '';
+      let dayType='praca', urlopKomentarz='';
+      if(/^urlop/i.test(opisText)){
+        dayType='urlop';
+        urlopKomentarz = opisText.replace(/^urlop:?\s*/i,'').trim();
+      } else if(blocks.length===0){
+        blocks.push({start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'});
+        if(opisText && !['SB','NDZ'].includes(opisText)) blocks[0].komentarz = opisText;
+      } else if(opisText && !['SB','NDZ'].includes(opisText)){
+        blocks[0].komentarz = opisText;
+      }
+      if(blocks.length===0) blocks.push({start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'});
+      arr.push({dayType, urlopKomentarz, blocks});
+    }
+    monthData = arr;
+    ensureMeta();
+    saveMonth();
+    openDay = null;
+    render();
+    if(currentTab==='urlopy') renderUrlopyTab();
+    alert('Zaimportowano. Sprawdź czy godziny się zgadzają.');
+  }catch(err){
+    alert('Import się nie udał: ' + err.message);
+  }
+  e.target.value = '';
+});
+
+document.getElementById('btnClear').addEventListener('click', ()=>{
+  if(confirm(`Wyczyścić wszystkie wpisy dla ${MONTH_NAMES[curMonth-1]} ${curYear}?`)){
+    const n = daysInMonth(curYear,curMonth);
+    monthData = []; for(let i=0;i<n;i++) monthData.push(emptyDay());
+    ensureMeta();
+    saveMonth(); openDay=null; render();
+  }
+});
+
+document.getElementById('btnCopy').addEventListener('click', ()=>{
+  const n = daysInMonth(curYear,curMonth);
+  let lines = [];
+  for(let dayNum=1; dayNum<=n; dayNum++){
+    const d = monthData[dayNum-1];
+    if(d.dayType==='urlop'){
+      lines.push([dayNum, 'URLOP', '', '', '', '', '', '0:00', d.urlopKomentarz].join('\t'));
+    } else {
+      const b = d.blocks;
+      lines.push([dayNum,
+        b[0]?.start||'', b[0]?.end||'',
+        b[1]?.start||'', b[1]?.end||'',
+        b[2]?.start||'', b[2]?.end||'',
+        fmtHM(dayWorkedMinutes(d)), composeOpis(d)].join('\t'));
+    }
+  }
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(()=>{
+    alert('Skopiowano — możesz wkleić do arkusza.');
+  }).catch(()=>{ prompt('Skopiuj ręcznie:', text); });
+});
+
+document.getElementById('btnExport').addEventListener('click', exportXlsx);
+
+// Merges dojazd-linked blocks into continuous paid spans; przerwa-linked gaps
+// stay as separate spans (unpaid, matches original 3-block Excel layout).
+function exportSpans(d){
+  const eff = computeEffectiveBlocks(d.blocks);
+  const spans = [];
+  let cur = null;
+  for(let i=0;i<eff.length;i++){
+    const b = eff[i];
+    if(b.startEff==null) continue;
+    if(cur===null){
+      cur = {start:b.startEff, end:b.endEff};
+    } else {
+      const prevIdx = i-1;
+      const gapType = (d.blocks[prevIdx] && d.blocks[prevIdx].gapAfter) || 'dojazd';
+      const gap = b.startEff - cur.end;
+      if(gap>0 && gapType==='dojazd'){
+        cur.end = b.endEff;
+      } else if(gap<=0){
+        cur.end = Math.max(cur.end, b.endEff);
+      } else {
+        spans.push(cur);
+        cur = {start:b.startEff, end:b.endEff};
+      }
+    }
+  }
+  if(cur) spans.push(cur);
+  return spans.slice(0,3);
+}
+
+function exportXlsx(){
+  const ws = {}; const merges = [];
+  const setCell = (addr, value, opts) => { ws[addr] = Object.assign({v:value}, opts||{}); };
+
+  setCell('A1','Rok',{t:'s'}); setCell('D1','Miesiąc',{t:'s'});
+  setCell('J1','Imię i Nazwisko',{t:'s'}); setCell('L1','PAWEŁ FUŁAWKA',{t:'s'});
+  setCell('O1','Stanowisko',{t:'s'}); setCell('R1','Wymiar czasu pracy',{t:'s'});
+  merges.push('B1:C1','H1:I1','J1:K1','L1:N1','P1:Q1','R1:S1');
+
+  setCell('A2','Oznaczenie dni',{t:'s'}); setCell('C2','Czas Pracy',{t:'s'});
+  setCell('I2','Czas przepracowany w godzinach',{t:'s'});
+  setCell('M2','Czas nieobecności w pracy w dniach lub godzinach',{t:'s'});
+  setCell('T2','Uwagi',{t:'s'});
+  merges.push('A2:B2','C2:H2','I2:L2','M2:S2');
+
+  const n = daysInMonth(curYear, curMonth);
+  for(let i=0; i<31; i++){
+    const r = 3+i; const dayNum = i+1;
+    if(dayNum <= n){
+      const d = monthData[i];
+      setCell(`A${r}`, dayNum, {t:'n'});
+      if(d.dayType==='urlop'){
+        setCell(`I${r}`, `Urlop${d.urlopKomentarz?': '+d.urlopKomentarz:''}`, {t:'s'});
+      } else {
+        const spans = exportSpans(d);
+        const cols = [['B','C'],['D','E'],['F','G']];
+        spans.forEach((sp,bi)=>{
+          const [sc,ec] = cols[bi];
+          setCell(`${sc}${r}`, sp.start/1440, {t:'n', z:'h:mm'});
+          setCell(`${ec}${r}`, sp.end/1440, {t:'n', z:'h:mm'});
+        });
+        const opis = composeOpis(d) || (isWeekend(curYear,curMonth,dayNum) ? (new Date(curYear,curMonth-1,dayNum).getDay()===0?'NDZ':'SB') : '');
+        if(opis) setCell(`I${r}`, opis, {t:'s'});
+      }
+      setCell(`H${r}`, null, {t:'n', z:'h:mm', f:`(C${r}-B${r})+(E${r}-D${r})+(G${r}-F${r})`});
+    } else {
+      setCell(`A${r}`, dayNum, {t:'n'});
+      setCell(`H${r}`, null, {t:'n', z:'h:mm', f:`(C${r}-B${r})+(E${r}-D${r})+(G${r}-F${r})`});
+    }
+    merges.push(`I${r}:S${r}`);
+  }
+
+  setCell('D34','Razem',{t:'s'});
+  setCell('H34', null, {t:'n', z:'h:mm', f:'+SUM(H3:H33)'});
+  merges.push('A35:T35');
+
+  ws['!ref'] = 'A1:T35';
+  ws['!merges'] = merges.map(XLSX.utils.decode_range);
+  ws['!cols'] = [{wch:6},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Arkusz1');
+  const yy = String(curYear).slice(-2);
+  const filename = `${curMonth}_${yy}_PF.xlsx`;
+
+  try{
+    if(isIOS()){
+      // iOS Safari (zwłaszcza dla stron otwartych lokalnie z Plików) zwykle nie obsługuje
+      // poprawnie pobierania przez Blob/createObjectURL — używamy data: URI zamiast tego.
+      const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
+      const uri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
+      const a = document.createElement('a');
+      a.href = uri;
+      a.download = filename;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(()=>{
+        alert('Jeśli plik nie zapisał się automatycznie: otworzy się podgląd — dotknij ikony udostępniania (⬆️) i wybierz "Zapisz w Plikach" lub "Otwórz w Numbers/Excel".');
+      }, 300);
+    } else {
+      XLSX.writeFile(wb, filename);
+    }
+  } catch(err){
+    alert('Eksport się nie udał: ' + err.message + '\n\nUżyj przycisku "Kopiuj" i wklej dane ręcznie do arkusza.');
+  }
+}
+
+function isIOS(){
+  return /iP(hone|od|ad)/.test(navigator.platform)
+    || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
+}
+
+(async function init(){
+  monthData = await loadMonth(curYear, curMonth);
+  ensureMeta();
+  render();
+})();
+</script>
+</body>
+</html>
