@@ -33,7 +33,23 @@
   .summarybar .box{ flex:1; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:7px 8px; text-align:center; }
   .summarybar .box .v{ font-size:16px; font-weight:700; color:var(--amber); }
   .summarybar .box .l{ font-size:9.5px; color:var(--ink-dim); margin-top:1px; }
-  .summarybar .toggle{ text-align:center; font-size:11px; color:var(--ink-dim); margin-top:6px; }
+  .summarybar .toggle{ text-align:center; font-size:11px; color:var(--ink-dim); margin-top:8px; }
+  .condensed{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; }
+  .condensed .cond-label{ font-size:11px; color:var(--ink-dim); margin-bottom:2px; }
+  .condensed .cond-total{ font-size:22px; font-weight:700; margin-bottom:2px; }
+  .condensed .cond-breakdown{ font-size:12.5px; color:var(--ink-dim); margin-bottom:10px; }
+  .condensed .cond-breakdown .norma{ color:var(--blue); font-weight:700; }
+  .condensed .cond-breakdown .delta.pos{ color:var(--green); font-weight:700; }
+  .condensed .cond-breakdown .delta.neg{ color:var(--red); font-weight:700; }
+  .condensed .cond-chips{ display:flex; gap:8px; margin-bottom:12px; }
+  .condensed .chip{ flex:1; background:var(--panel2); border-radius:8px; padding:6px 4px; text-align:center; }
+  .condensed .chip .l{ font-size:9.5px; color:var(--ink-dim); margin-bottom:2px; }
+  .condensed .chip .v{ font-size:13.5px; font-weight:700; }
+  .condensed .chip .v.pos{ color:var(--green); } .condensed .chip .v.neg{ color:var(--red); }
+  .condensed .urlopline{ display:flex; align-items:baseline; gap:8px; margin-bottom:6px; font-size:13.5px; font-weight:700; }
+  .condensed .urlopline .pct{ font-size:11px; color:var(--ink-dim); font-weight:400; }
+  .condensed .urlopbar{ height:6px; background:var(--panel2); border-radius:4px; overflow:hidden; }
+  .condensed .urlopbar .fill{ height:100%; background:var(--blue); }
   .detail{ display:none; margin-top:8px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
   .detail.open{ display:block; }
   .detail-row{ display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:12.5px; border-bottom:1px solid var(--line); }
@@ -55,6 +71,7 @@
   .day-name{ width:32px; font-size:11px; color:var(--ink-dim); text-transform:uppercase; }
   .day-desc-preview{ flex:1; font-size:12.5px; color:var(--ink-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .day-hours{ font-size:13px; font-weight:700; color:var(--green); min-width:44px; text-align:right; }
+  .day.dayoff .day-num, .day.dayoff .day-name, .day.dayoff .day-hours, .day.dayoff .day-desc-preview{ color:var(--red); }
   .day-hours.zero{ color:var(--ink-dim); font-weight:400; }
   .day-hours.urloptag{ color:#a8c98a; font-size:11.5px; }
   .chev{ color:var(--ink-dim); font-size:12px; width:14px; text-align:center; }
@@ -135,10 +152,17 @@
     <button id="btnTestSave" style="width:100%; background:var(--panel2); border:1px dashed var(--line); color:var(--ink-dim); padding:8px; border-radius:8px; font-size:12px;">🔧 Testuj połączenie z Arkuszem</button>
   </div>
   <div class="summarybar" id="viewDays">
-    <div class="top">
-      <div class="box"><div class="v" id="sumWorked">0:00</div><div class="l">razem godz.</div></div>
-      <div class="box"><div class="v" id="sumDays">0</div><div class="l">dni z wpisem</div></div>
-      <div class="box"><div class="v bilans" id="sumBilans">0:00</div><div class="l">bilans</div></div>
+    <div class="condensed" id="condensedPanel">
+      <div class="cond-label">godziny ogółem</div>
+      <div class="cond-total" id="condTotal">0:00</div>
+      <div class="cond-breakdown"><span class="norma" id="condNorma">0:00</span> norma · <span class="delta" id="condDelta">0:00</span> <span id="condDeltaLabel">nadgodziny</span></div>
+      <div class="cond-chips">
+        <div class="chip"><div class="l">efektywność</div><div class="v" id="condEff">—</div></div>
+        <div class="chip"><div class="l" id="condShareLabel">nadgodziny</div><div class="v" id="condShare">0%</div></div>
+        <div class="chip"><div class="l">dni z wpisem</div><div class="v" id="condFilled">0/0</div></div>
+      </div>
+      <div class="urlopline"><span id="condUrlopFrac">urlop 0/26</span><span class="pct" id="condUrlopPct">0%</span></div>
+      <div class="urlopbar"><div class="fill" id="condUrlopBar" style="width:0%"></div></div>
     </div>
     <div class="toggle" id="toggleDetail">Podsumowanie miesiąca ▾</div>
     <div class="detail" id="detailPanel">
@@ -147,7 +171,7 @@
       <div class="detail-row"><label><input type="checkbox" id="chkWizja" checked> Wizje lokalne</label><span class="val" id="sWizja">0:00</span></div>
       <div class="detail-row"><label>🚗 Dojazdy <span class="hint">(zawsze liczone)</span></label><span class="val" id="sDojazd">0:00</span></div>
       <div class="detail-row"><label>☕ Przerwy <span class="hint">(nie liczone)</span></label><span class="val" id="sPrzerwa">0:00</span></div>
-      <div class="detail-row"><label>Dni robocze (Pn–Pt)</label><span class="val" id="sWorkdays">0</span></div>
+      <div class="detail-row"><label>Dni robocze (bez weekendów i świąt)</label><span class="val" id="sWorkdays">0</span></div>
       <div class="detail-row"><label>Norma godzin</label><input type="number" id="inpNorma" step="0.5"></div>
       <div class="detail-row"><label>🌴 Urlop (dni × 8h)</label><span class="val" id="sUrlopH">0:00</span></div>
       <div class="detail-row"><label>Do przepracowania</label><span class="val" id="sWymagane">0:00</span></div>
@@ -304,10 +328,56 @@ function composeOpis(d){
   return d.blocks.filter(b=>b.komentarz && b.komentarz.trim()).map(b=>`${KIND_SHORT[b.kind]}: ${b.komentarz.trim()}`).join(' | ');
 }
 
+// Polish public holidays: fixed dates + Easter-derived (Meeus/Jones/Butcher algorithm).
+function getEasterSunday(year){
+  const a = year % 19;
+  const b = Math.floor(year/100);
+  const c = year % 100;
+  const d = Math.floor(b/4);
+  const e = b % 4;
+  const f = Math.floor((b+8)/25);
+  const g = Math.floor((b-f+1)/3);
+  const h = (19*a+b-d-g+15)%30;
+  const i = Math.floor(c/4);
+  const k = c%4;
+  const l = (32+2*e+2*i-h-k)%7;
+  const m = Math.floor((a+11*h+22*l)/451);
+  const month = Math.floor((h+l-7*m+114)/31);
+  const day = ((h+l-7*m+114)%31)+1;
+  return new Date(year, month-1, day);
+}
+
+const _holidayCache = {};
+function getPolishHolidays(year){
+  if(_holidayCache[year]) return _holidayCache[year];
+  const easter = getEasterSunday(year);
+  const easterMonday = new Date(easter); easterMonday.setDate(easter.getDate()+1);
+  const corpusChristi = new Date(easter); corpusChristi.setDate(easter.getDate()+60);
+  const fixed = [
+    [1,1,'Nowy Rok'], [1,6,'Trzech Króli'], [5,1,'Święto Pracy'],
+    [5,3,'Święto Konstytucji 3 Maja'], [8,15,'Wniebowzięcie NMP'],
+    [11,1,'Wszystkich Świętych'], [11,11,'Niepodległość'],
+    [12,25,'Boże Narodzenie'], [12,26,'Boże Narodzenie (2. dzień)']
+  ];
+  const map = {};
+  fixed.forEach(([m,d,name])=>{ map[`${m}-${d}`] = name; });
+  map[`${easterMonday.getMonth()+1}-${easterMonday.getDate()}`] = 'Poniedziałek Wielkanocny';
+  map[`${corpusChristi.getMonth()+1}-${corpusChristi.getDate()}`] = 'Boże Ciało';
+  _holidayCache[year] = map;
+  return map;
+}
+function getHolidayName(y,m,d){
+  return getPolishHolidays(y)[`${m}-${d}`] || null;
+}
+
 function workdaysCount(y,m){
   const n = daysInMonth(y,m);
   let c=0;
-  for(let d=1; d<=n; d++) if(!isWeekend(y,m,d)) c++;
+  for(let d=1; d<=n; d++){
+    if(isWeekend(y,m,d)) continue;
+    if(getHolidayName(y,m,d)) continue;
+    c++;
+  }
   return c;
 }
 
@@ -348,11 +418,6 @@ function computeTotals(){
 
 function updateSummary(){
   const t = computeTotals();
-  document.getElementById('sumWorked').textContent = fmtHM(t.worked);
-  document.getElementById('sumDays').textContent = t.filledDays;
-  const bilEl = document.getElementById('sumBilans');
-  bilEl.textContent = fmtHM(t.bilans);
-  bilEl.className = 'v bilans ' + (t.bilans>=0?'pos':'neg');
 
   document.getElementById('sBiuro').textContent = fmtHM(t.biuro);
   document.getElementById('sObiekt').textContent = fmtHM(t.obiekt);
@@ -370,6 +435,68 @@ function updateSummary(){
   if(document.activeElement !== normaInp){
     normaInp.value = (monthNormaOverride() ?? monthNormaDefault())/60;
   }
+
+  updateCondensedPanel(t);
+}
+
+const URLOP_LIMIT = 26;
+let yearlyUrlopUsed = 0;
+
+function updateCondensedPanel(t){
+  t = t || computeTotals();
+  document.getElementById('condTotal').textContent = fmtHM(t.included);
+  document.getElementById('condNorma').textContent = fmtHM(t.wymagane);
+
+  const delta = t.included - t.wymagane;
+  const deltaEl = document.getElementById('condDelta');
+  const deltaLabelEl = document.getElementById('condDeltaLabel');
+  const shareLabelEl = document.getElementById('condShareLabel');
+  const shareEl = document.getElementById('condShare');
+  deltaEl.textContent = fmtHM(Math.abs(delta));
+  if(delta>=0){
+    deltaEl.className = 'delta pos';
+    deltaLabelEl.textContent = 'nadgodziny';
+    shareLabelEl.textContent = 'nadgodziny w całości';
+    shareEl.textContent = t.included>0 ? Math.round(delta/t.included*100)+'%' : '0%';
+    shareEl.className = 'v pos';
+  } else {
+    deltaEl.className = 'delta neg';
+    deltaLabelEl.textContent = 'niedobór';
+    shareLabelEl.textContent = 'niedobór wobec normy';
+    shareEl.textContent = t.wymagane>0 ? Math.round(Math.abs(delta)/t.wymagane*100)+'%' : '0%';
+    shareEl.className = 'v neg';
+  }
+
+  document.getElementById('condEff').textContent = t.wymagane>0 ? Math.round(t.included/t.wymagane*100)+'%' : '—';
+  document.getElementById('condFilled').textContent = `${t.filledDays} / ${workdaysCount(curYear,curMonth)}`;
+
+  document.getElementById('condUrlopFrac').textContent = `urlop ${yearlyUrlopUsed}/${URLOP_LIMIT}`;
+  const pct = URLOP_LIMIT>0 ? Math.round(yearlyUrlopUsed/URLOP_LIMIT*100) : 0;
+  document.getElementById('condUrlopPct').textContent = pct+'%';
+  document.getElementById('condUrlopBar').style.width = Math.min(100,pct)+'%';
+}
+
+// Sums urlop days across all 12 months of the year from the Google Sheet,
+// so the yearly counter is correct regardless of which month is open.
+async function refreshYearlyUrlop(){
+  const year = curYear;
+  const keys = [];
+  for(let m=1;m<=12;m++) keys.push(storageKey(year,m));
+  try{
+    const texts = await Promise.all(keys.map(k=>
+      fetch(`${GAS_URL}?key=${k}`).then(r=>r.ok?r.text():'').catch(()=>'')
+    ));
+    let total = 0;
+    texts.forEach(text=>{
+      if(!text || !text.trim()) return;
+      try{
+        const arr = migrateOld(JSON.parse(text), 31);
+        arr.forEach(d=>{ if(d && d.dayType==='urlop') total++; });
+      }catch(e){}
+    });
+    yearlyUrlopUsed = total;
+  }catch(e){ console.warn('nie udało się policzyć urlopu rocznego:', e); }
+  updateCondensedPanel();
 }
 
 function updateDayBadge(dayNum){
@@ -390,8 +517,12 @@ function updateDayBadge(dayNum){
     badge.className = 'day-hours' + (mins===0?' zero':'');
     cardEl.classList.remove('urlop');
     const wd = new Date(curYear,curMonth-1,dayNum).getDay();
+    const isWknd = isWeekend(curYear,curMonth,dayNum);
+    const holidayName = getHolidayName(curYear,curMonth,dayNum);
+    cardEl.classList.toggle('weekend', isWknd || !!holidayName);
+    cardEl.classList.toggle('dayoff', isWknd || !!holidayName);
     const opis = composeOpis(d);
-    preview.textContent = opis || (isWeekend(curYear,curMonth,dayNum) ? (wd===0?'NDZ':'SB') : '');
+    preview.textContent = opis || holidayName || (isWknd ? (wd===0?'NDZ':'SB') : '');
   }
 }
 
@@ -494,6 +625,7 @@ function renderBody(dayNum){
       btn.addEventListener('click', ()=>{
         d.dayType = btn.dataset.act === 'type-urlop' ? 'urlop' : 'praca';
         saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
+        refreshYearlyUrlop();
       });
     });
     const ta = body.querySelector('.urlop-komentarz');
@@ -531,6 +663,7 @@ function renderBody(dayNum){
     btn.addEventListener('click', ()=>{
       d.dayType = btn.dataset.act === 'type-urlop' ? 'urlop' : 'praca';
       saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
+      refreshYearlyUrlop();
     });
   });
 
@@ -654,12 +787,14 @@ document.getElementById('prevM').addEventListener('click', async ()=>{
   openDay = null;
   monthData = await loadMonth(curYear, curMonth); ensureMeta();
   render(); if(currentTab==='urlopy') renderUrlopyTab();
+  refreshYearlyUrlop();
 });
 document.getElementById('nextM').addEventListener('click', async ()=>{
   curMonth++; if(curMonth>12){curMonth=1; curYear++;}
   openDay = null;
   monthData = await loadMonth(curYear, curMonth); ensureMeta();
   render(); if(currentTab==='urlopy') renderUrlopyTab();
+  refreshYearlyUrlop();
 });
 
 function excelFracToTime(v){
@@ -726,6 +861,7 @@ document.getElementById('importFile').addEventListener('change', async (e)=>{
     openDay = null;
     render();
     if(currentTab==='urlopy') renderUrlopyTab();
+    refreshYearlyUrlop();
     alert('Zaimportowano. Sprawdź czy godziny się zgadzają.');
   }catch(err){
     alert('Import się nie udał: ' + err.message);
@@ -739,6 +875,7 @@ document.getElementById('btnClear').addEventListener('click', ()=>{
     monthData = []; for(let i=0;i<n;i++) monthData.push(emptyDay());
     ensureMeta();
     saveMonth(); openDay=null; render();
+    refreshYearlyUrlop();
   }
 });
 
@@ -884,6 +1021,7 @@ function isIOS(){
   monthData = await loadMonth(curYear, curMonth);
   ensureMeta();
   render();
+  refreshYearlyUrlop();
 })();
 </script>
 </body>
