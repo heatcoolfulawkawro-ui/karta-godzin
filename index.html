@@ -12,7 +12,7 @@
     --red:#d9695f; --blue:#5b9bd5; --weekend:#26313a; --urlop:#2c3626; --radius:10px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',Roboto,Arial,sans-serif; padding-bottom:130px; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',Roboto,Arial,sans-serif; padding-bottom:24px; }
   header{ position:sticky; top:0; z-index:5; background:linear-gradient(180deg,#151c22 0%, #12181d 100%); border-bottom:1px solid var(--line); padding:12px 16px 8px; }
   header h1{ margin:0 0 2px; font-size:16px; font-weight:700; }
   header .who{ color:var(--ink-dim); font-size:12px; margin-bottom:8px; }
@@ -22,10 +22,18 @@
   .tabs{ display:flex; gap:6px; margin-top:10px; }
   .tabs button{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:8px 4px; border-radius:8px; font-size:12.5px; font-weight:600; }
   .tabs button.active{ background:var(--amber); color:#20140a; border-color:var(--amber); }
-  .importrow{ margin-top:8px; }
-  .importlabel{ font-size:11px; color:var(--ink-dim); margin-bottom:5px; }
-  .importrow input[type=file]{ width:100%; color:var(--ink-dim); font-size:11.5px; }
-  .importrow input[type=file]::-webkit-file-upload-button{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); padding:6px 10px; border-radius:7px; font-size:11.5px; margin-right:8px; }
+  .viewmode-switch{ display:flex; gap:6px; margin-top:6px; }
+  .viewmode-switch button{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:6px 4px; border-radius:8px; font-size:11.5px; }
+  .viewmode-switch button.active{ background:var(--blue); color:#0d1a24; border-color:var(--blue); font-weight:700; }
+  .day.crossmonth{ opacity:.5; }
+  .icontoolbar{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .icobtn{ position:relative; width:36px; height:36px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:15px; color:var(--ink); overflow:hidden; line-height:1; }
+  .icobtn.green{ color:var(--green); border-color:#2f4a3a; }
+  .icobtn .xlstag{ font-size:7px; color:var(--green); font-weight:700; margin-top:1px; }
+  .icobtn input[type=file]{ position:absolute; inset:0; opacity:0; width:100%; height:100%; }
+  .statusdot{ width:12px; height:12px; border-radius:50%; background:var(--ink-dim); flex:0 0 12px; margin-right:2px; }
+  .statusdot.ok{ background:var(--green); box-shadow:0 0 6px var(--green); }
+  .statusdot.fail{ background:var(--red); box-shadow:0 0 6px var(--red); }
   .cloudtag{ font-size:9.5px; color:var(--ink-dim); text-align:center; margin-top:4px; }
 
   .summarybar{ margin-top:8px; }
@@ -34,24 +42,20 @@
   .summarybar .box .v{ font-size:16px; font-weight:700; color:var(--amber); }
   .summarybar .box .l{ font-size:9.5px; color:var(--ink-dim); margin-top:1px; }
   .summarybar .toggle{ text-align:center; font-size:11px; color:var(--ink-dim); margin-top:8px; }
-  .condensed{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; }
-  .condensed .cond-label{ font-size:11px; color:var(--ink-dim); margin-bottom:2px; }
-  .condensed .cond-total{ font-size:22px; font-weight:700; margin-bottom:2px; }
-  .condensed .cond-breakdown{ font-size:12.5px; color:var(--ink-dim); margin-bottom:10px; }
-  .condensed .cond-breakdown .norma{ color:var(--blue); font-weight:700; }
-  .condensed .cond-breakdown .delta.pos{ color:var(--green); font-weight:700; }
-  .condensed .cond-breakdown .delta.neg{ color:var(--red); font-weight:700; }
-  .condensed .cond-chips{ display:flex; gap:8px; margin-bottom:12px; }
-  .condensed .chip{ flex:1; background:var(--panel2); border-radius:8px; padding:6px 4px; text-align:center; }
-  .condensed .chip .l{ font-size:9.5px; color:var(--ink-dim); margin-bottom:2px; }
-  .condensed .chip .v{ font-size:13.5px; font-weight:700; }
+  .condensed{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
+  .cond-row1{ display:flex; gap:8px; margin-bottom:8px; }
+  .cond-row1 .c1{ flex:1; text-align:center; }
+  .cond-row1 .l{ font-size:10px; color:var(--ink-dim); margin-bottom:1px; }
+  .cond-row1 .v{ font-size:18px; font-weight:700; }
+  .cond-row1 .v.norma{ color:var(--blue); }
+  .cond-row1 .v.delta.pos{ color:var(--green); }
+  .cond-row1 .v.delta.neg{ color:var(--red); }
+  .condensed .cond-chips{ display:flex; gap:6px; }
+  .condensed .chip{ flex:1; background:var(--panel2); border-radius:8px; padding:5px 3px; text-align:center; }
+  .condensed .chip .l{ font-size:9px; color:var(--ink-dim); margin-bottom:2px; }
+  .condensed .chip .v{ font-size:12.5px; font-weight:700; }
   .condensed .chip .v.pos{ color:var(--green); } .condensed .chip .v.neg{ color:var(--red); }
-  .condensed .urlopline{ display:flex; align-items:baseline; gap:8px; margin-bottom:6px; font-size:13.5px; font-weight:700; }
-  .condensed .urlopline .pct{ font-size:11px; color:var(--ink-dim); font-weight:400; }
-  .condensed .urlopbar{ height:6px; background:var(--panel2); border-radius:4px; overflow:hidden; }
-  .condensed .urlopbar .fill{ height:100%; background:var(--blue); }
-  .detail{ display:none; margin-top:8px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
-  .detail.open{ display:block; }
+  .detail{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
   .detail-row{ display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:12.5px; border-bottom:1px solid var(--line); }
   .detail-row:last-child{ border-bottom:none; }
   .detail-row label{ display:flex; align-items:center; gap:6px; color:var(--ink); }
@@ -60,17 +64,22 @@
   .detail-row input[type=checkbox]{ width:15px; height:15px; }
   .detail-row input[type=number]{ width:56px; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:3px 5px; text-align:center; }
   .bilans.pos{ color:var(--green); } .bilans.neg{ color:var(--red); }
+  .overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:20; align-items:flex-end; }
+  .overlay.open{ display:flex; }
+  .overlay-card{ width:100%; max-height:80vh; overflow-y:auto; background:var(--bg); border-radius:16px 16px 0 0; padding:14px 16px calc(20px + env(safe-area-inset-bottom)); }
+  .overlay-head{ display:flex; justify-content:space-between; align-items:center; font-size:15px; font-weight:700; margin-bottom:10px; }
+  .overlay-head button{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); width:28px; height:28px; border-radius:8px; font-size:13px; }
 
   main{ padding:10px 10px 0; }
   .day{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; }
   .day.weekend{ background:var(--weekend); }
   .day.urlop{ background:var(--urlop); }
   .day.empty{ opacity:.72; }
-  .day-head{ display:flex; align-items:center; gap:10px; padding:9px 12px; }
-  .day-num{ width:30px; text-align:center; font-weight:700; font-size:15px; }
-  .day-name{ width:32px; font-size:11px; color:var(--ink-dim); text-transform:uppercase; }
-  .day-desc-preview{ flex:1; font-size:12.5px; color:var(--ink-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .day-hours{ font-size:13px; font-weight:700; color:var(--green); min-width:44px; text-align:right; }
+  .day-head{ display:flex; align-items:center; gap:7px; padding:5px 10px; }
+  .day-num{ width:22px; text-align:center; font-weight:700; font-size:12.5px; }
+  .day-name{ width:24px; font-size:9px; color:var(--ink-dim); text-transform:uppercase; }
+  .day-desc-preview{ flex:1; font-size:10.5px; color:var(--ink-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .day-hours{ font-size:11px; font-weight:700; color:var(--green); min-width:36px; text-align:right; }
   .day.dayoff .day-num, .day.dayoff .day-name, .day.dayoff .day-hours, .day.dayoff .day-desc-preview{ color:var(--red); }
   .day-hours.zero{ color:var(--ink-dim); font-weight:400; }
   .day-hours.urloptag{ color:#a8c98a; font-size:11.5px; }
@@ -118,11 +127,7 @@
   .urlop-item .ui-comment{ color:var(--ink-dim); font-size:12.5px; }
   .urlop-empty{ text-align:center; color:var(--ink-dim); font-size:13px; padding:30px 10px; }
 
-  footer{ position:sticky; bottom:0; left:0; right:0; background:#141a1f; border-top:1px solid var(--line); padding:10px 12px calc(24px + env(safe-area-inset-bottom)); display:flex; gap:8px; z-index:5; }
-  footer button{ flex:1; border:none; border-radius:9px; padding:12px 6px; font-size:13.5px; font-weight:600; }
   #btnExport{ background:var(--amber); color:#20140a; }
-  #btnCopy{ background:var(--panel2); color:var(--ink); border:1px solid var(--line); }
-  #btnClear{ background:var(--panel2); color:var(--red); border:1px solid var(--line); flex:0 0 44px; }
 
   .savetag{ position:fixed; top:8px; right:12px; font-size:10.5px; color:var(--ink-dim); opacity:0; transition:opacity .3s; z-index:10;}
   .savetag.show{ opacity:1; }
@@ -144,27 +149,48 @@
     <button id="tabDays" class="active">Dni pracy</button>
     <button id="tabUrlopy">Urlopy tego miesiąca</button>
   </div>
-  <div class="importrow">
-    <div class="importlabel">📥 Importuj ten miesiąc z .xlsx:</div>
-    <input type="file" id="importFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+  <div class="viewmode-switch">
+    <button data-vm="dzien">Dzień</button>
+    <button data-vm="tydzien">Tydzień</button>
+    <button data-vm="miesiac" class="active">Miesiąc</button>
   </div>
-  <div class="importrow">
-    <button id="btnTestSave" style="width:100%; background:var(--panel2); border:1px dashed var(--line); color:var(--ink-dim); padding:8px; border-radius:8px; font-size:12px;">🔧 Testuj połączenie z Arkuszem</button>
+
+  <div class="icontoolbar">
+    <span class="statusdot" id="statusDot" title="Status połączenia z Arkuszem"></span>
+    <label class="icobtn green" id="btnImport" title="Importuj z .xlsx">
+      ↓<span class="xlstag">xlsx</span>
+      <input type="file" id="importFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+    </label>
+    <button class="icobtn green" id="btnExport" title="Eksport .xlsx">↑<span class="xlstag">xlsx</span></button>
   </div>
+
   <div class="summarybar" id="viewDays">
     <div class="condensed" id="condensedPanel">
-      <div class="cond-label">godziny ogółem</div>
-      <div class="cond-total" id="condTotal">0:00</div>
-      <div class="cond-breakdown"><span class="norma" id="condNorma">0:00</span> norma · <span class="delta" id="condDelta">0:00</span> <span id="condDeltaLabel">nadgodziny</span></div>
+      <div class="cond-row1">
+        <div class="c1"><div class="l">suma</div><div class="v" id="condTotal">0:00</div></div>
+        <div class="c1"><div class="l">norma</div><div class="v norma" id="condNorma">0:00</div></div>
+        <div class="c1"><div class="l" id="condDeltaLabel">niedobór</div><div class="v delta" id="condDelta">0:00</div></div>
+      </div>
       <div class="cond-chips">
         <div class="chip"><div class="l">efektywność</div><div class="v" id="condEff">—</div></div>
-        <div class="chip"><div class="l" id="condShareLabel">nadgodziny</div><div class="v" id="condShare">0%</div></div>
+        <div class="chip"><div class="l" id="condShareLabel">niedobór</div><div class="v" id="condShare">0%</div></div>
         <div class="chip"><div class="l">dni z wpisem</div><div class="v" id="condFilled">0/0</div></div>
+        <div class="chip"><div class="l">urlop</div><div class="v" id="condUrlopChip">0/26</div></div>
       </div>
-      <div class="urlopline"><span id="condUrlopFrac">urlop 0/26</span><span class="pct" id="condUrlopPct">0%</span></div>
-      <div class="urlopbar"><div class="fill" id="condUrlopBar" style="width:0%"></div></div>
     </div>
-    <div class="toggle" id="toggleDetail">Podsumowanie miesiąca ▾</div>
+    <div class="toggle" id="toggleDetail">Podsumowanie miesiąca ▸</div>
+  </div>
+</header>
+
+<main id="days"></main>
+<div id="viewUrlopy" class="urlop-list" style="display:none; padding:0 10px;"></div>
+
+<div class="overlay" id="detailOverlay">
+  <div class="overlay-card">
+    <div class="overlay-head">
+      <span>Podsumowanie miesiąca</span>
+      <button id="closeDetail">✕</button>
+    </div>
     <div class="detail" id="detailPanel">
       <div class="detail-row"><label><input type="checkbox" id="chkBiuro" checked> Biuro</label><span class="val" id="sBiuro">0:00</span></div>
       <div class="detail-row"><label><input type="checkbox" id="chkObiekt" checked> Obiekt</label><span class="val" id="sObiekt">0:00</span></div>
@@ -178,16 +204,7 @@
       <div class="detail-row"><label>Bilans (zaznaczone+dojazd − wymagane)</label><span class="val bilans" id="sBilans2">0:00</span></div>
     </div>
   </div>
-</header>
-
-<main id="days"></main>
-<div id="viewUrlopy" class="urlop-list" style="display:none; padding:0 10px;"></div>
-
-<footer>
-  <button id="btnClear" title="Wyczyść miesiąc">🗑</button>
-  <button id="btnCopy">Kopiuj</button>
-  <button id="btnExport">Eksport .xlsx</button>
-</footer>
+</div>
 
 <script>
 const DAY_NAMES = ['Nd','Pn','Wt','Śr','Czw','Pt','So'];
@@ -198,6 +215,8 @@ const KIND_SHORT = {biuro:'Biuro', obiekt:'Obiekt', wizja:'Wizja'};
 let today = new Date();
 let curYear = today.getFullYear();
 let curMonth = today.getMonth() + 1;
+let refDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+let viewMode = 'miesiac'; // 'dzien' | 'tydzien' | 'miesiac' — niezależny od zakładki Dni pracy/Urlopy
 let currentTab = 'days';
 let openDay = null;
 
@@ -266,6 +285,25 @@ function saveMonth(){
   saveMonth._t = setTimeout(()=>tag.classList.remove('show'), 1200);
 }
 
+function setStatusDot(ok){
+  const dot = document.getElementById('statusDot');
+  dot.classList.remove('ok','fail');
+  dot.classList.add(ok?'ok':'fail');
+  dot.title = ok ? 'Połączenie z Arkuszem: OK' : 'Brak połączenia z Arkuszem (offline / dane tylko lokalnie)';
+}
+
+// Auto-check on load: harmless read of a key that (almost certainly) doesn't
+// exist, just to confirm the endpoint responds.
+async function checkConnection(){
+  try{
+    const res = await fetch(`${GAS_URL}?key=__ping__`);
+    setStatusDot(res.ok);
+  }catch(e){
+    setStatusDot(false);
+  }
+}
+document.getElementById('statusDot').addEventListener('click', checkConnection);
+
 async function cloudMirror(key, json){
   const tag = document.getElementById('savetag');
   try{
@@ -275,8 +313,10 @@ async function cloudMirror(key, json){
       body: JSON.stringify({key, value: json})
     });
     tag.textContent = 'zapisano w Arkuszu';
+    setStatusDot(true);
   }catch(e){
     tag.textContent = 'zapisano lokalnie (offline)';
+    setStatusDot(false);
     console.warn('zapis do Arkusza nieudany:', e);
   }
 }
@@ -454,15 +494,15 @@ function updateCondensedPanel(t){
   const shareEl = document.getElementById('condShare');
   deltaEl.textContent = fmtHM(Math.abs(delta));
   if(delta>=0){
-    deltaEl.className = 'delta pos';
+    deltaEl.className = 'v delta pos';
     deltaLabelEl.textContent = 'nadgodziny';
-    shareLabelEl.textContent = 'nadgodziny w całości';
+    shareLabelEl.textContent = 'nadgodziny';
     shareEl.textContent = t.included>0 ? Math.round(delta/t.included*100)+'%' : '0%';
     shareEl.className = 'v pos';
   } else {
-    deltaEl.className = 'delta neg';
+    deltaEl.className = 'v delta neg';
     deltaLabelEl.textContent = 'niedobór';
-    shareLabelEl.textContent = 'niedobór wobec normy';
+    shareLabelEl.textContent = 'niedobór';
     shareEl.textContent = t.wymagane>0 ? Math.round(Math.abs(delta)/t.wymagane*100)+'%' : '0%';
     shareEl.className = 'v neg';
   }
@@ -470,10 +510,8 @@ function updateCondensedPanel(t){
   document.getElementById('condEff').textContent = t.wymagane>0 ? Math.round(t.included/t.wymagane*100)+'%' : '—';
   document.getElementById('condFilled').textContent = `${t.filledDays} / ${workdaysCount(curYear,curMonth)}`;
 
-  document.getElementById('condUrlopFrac').textContent = `urlop ${yearlyUrlopUsed}/${URLOP_LIMIT}`;
   const pct = URLOP_LIMIT>0 ? Math.round(yearlyUrlopUsed/URLOP_LIMIT*100) : 0;
-  document.getElementById('condUrlopPct').textContent = pct+'%';
-  document.getElementById('condUrlopBar').style.width = Math.min(100,pct)+'%';
+  document.getElementById('condUrlopChip').textContent = `${yearlyUrlopUsed}/${URLOP_LIMIT} (${pct}%)`;
 }
 
 // Sums urlop days across all 12 months of the year from the Google Sheet,
@@ -571,39 +609,96 @@ function refreshDayDerived(dayNum){
   }
 }
 
+function getWeekDates(date){
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = d.getDay();
+  const diffToMonday = (day===0 ? -6 : 1-day);
+  const monday = new Date(d); monday.setDate(d.getDate()+diffToMonday);
+  const dates = [];
+  for(let i=0;i<7;i++){ const dt = new Date(monday); dt.setDate(monday.getDate()+i); dates.push(dt); }
+  return dates;
+}
+
+function updateMonthLabel(){
+  const label = document.getElementById('monthLabel');
+  if(viewMode==='miesiac'){
+    label.textContent = `${MONTH_NAMES[curMonth-1]} ${curYear}`;
+  } else if(viewMode==='tydzien'){
+    const wk = getWeekDates(refDate);
+    const a = wk[0], b = wk[6];
+    label.textContent = (a.getMonth()===b.getMonth())
+      ? `${a.getDate()}–${b.getDate()} ${MONTH_NAMES[a.getMonth()]} ${a.getFullYear()}`
+      : `${a.getDate()} ${MONTH_NAMES[a.getMonth()]} – ${b.getDate()} ${MONTH_NAMES[b.getMonth()]} ${b.getFullYear()}`;
+  } else {
+    const wdname = ['niedziela','poniedziałek','wtorek','środa','czwartek','piątek','sobota'][refDate.getDay()];
+    label.textContent = `${wdname}, ${refDate.getDate()} ${MONTH_NAMES[refDate.getMonth()]} ${refDate.getFullYear()}`;
+  }
+}
+
+function appendDayRow(container, dayNum){
+  const wd = new Date(curYear, curMonth-1, dayNum).getDay();
+  const el = document.createElement('div');
+  el.className = 'day' + (isWeekend(curYear,curMonth,dayNum) ? ' weekend' : '');
+  el.dataset.day = dayNum;
+  if(openDay===dayNum) el.classList.add('open');
+
+  el.innerHTML = `
+    <div class="day-head">
+      <div class="day-num">${dayNum}</div>
+      <div class="day-name">${DAY_NAMES[wd]}</div>
+      <div class="day-desc-preview"></div>
+      <div class="day-hours"></div>
+      <div class="chev">▸</div>
+    </div>
+    <div class="day-body" id="body-${dayNum}"></div>
+  `;
+  container.appendChild(el);
+  el.querySelector('.day-head').addEventListener('click', () => {
+    const isOpen = el.classList.contains('open');
+    document.querySelectorAll('.day.open').forEach(x=>x.classList.remove('open'));
+    if(!isOpen){ el.classList.add('open'); openDay = dayNum; renderBody(dayNum); }
+    else openDay = null;
+  });
+  updateDayBadge(dayNum);
+  if(openDay===dayNum) renderBody(dayNum);
+}
+
+// Days of a displayed week that fall outside the currently loaded month —
+// shown dimmed/simplified; tapping jumps refDate there (loads that month).
+function appendCrossRow(container, dateObj){
+  const wd = dateObj.getDay();
+  const el = document.createElement('div');
+  el.className = 'day crossmonth';
+  el.innerHTML = `
+    <div class="day-head">
+      <div class="day-num">${dateObj.getDate()}</div>
+      <div class="day-name">${DAY_NAMES[wd]}</div>
+      <div class="day-desc-preview">${MONTH_NAMES[dateObj.getMonth()]}</div>
+      <div class="day-hours">···</div>
+    </div>
+  `;
+  container.appendChild(el);
+  el.addEventListener('click', async ()=>{
+    refDate = new Date(dateObj);
+    await syncMonthWithRef();
+  });
+}
+
 function render(){
-  document.getElementById('monthLabel').textContent = `${MONTH_NAMES[curMonth-1]} ${curYear}`;
+  updateMonthLabel();
   const container = document.getElementById('days');
   container.innerHTML = '';
   const n = daysInMonth(curYear,curMonth);
 
-  for(let dayNum=1; dayNum<=n; dayNum++){
-    const d = monthData[dayNum-1];
-    const wd = new Date(curYear, curMonth-1, dayNum).getDay();
-    const el = document.createElement('div');
-    el.className = 'day' + (isWeekend(curYear,curMonth,dayNum) ? ' weekend' : '');
-    el.dataset.day = dayNum;
-    if(openDay===dayNum) el.classList.add('open');
-
-    el.innerHTML = `
-      <div class="day-head">
-        <div class="day-num">${dayNum}</div>
-        <div class="day-name">${DAY_NAMES[wd]}</div>
-        <div class="day-desc-preview"></div>
-        <div class="day-hours"></div>
-        <div class="chev">▸</div>
-      </div>
-      <div class="day-body" id="body-${dayNum}"></div>
-    `;
-    container.appendChild(el);
-    el.querySelector('.day-head').addEventListener('click', () => {
-      const isOpen = el.classList.contains('open');
-      document.querySelectorAll('.day.open').forEach(x=>x.classList.remove('open'));
-      if(!isOpen){ el.classList.add('open'); openDay = dayNum; renderBody(dayNum); }
-      else openDay = null;
+  if(viewMode==='miesiac'){
+    for(let dayNum=1; dayNum<=n; dayNum++) appendDayRow(container, dayNum);
+  } else if(viewMode==='dzien'){
+    appendDayRow(container, refDate.getDate());
+  } else {
+    getWeekDates(refDate).forEach(dt=>{
+      if(dt.getFullYear()===curYear && dt.getMonth()+1===curMonth) appendDayRow(container, dt.getDate());
+      else appendCrossRow(container, dt);
     });
-    updateDayBadge(dayNum);
-    if(openDay===dayNum) renderBody(dayNum);
   }
   updateSummary();
 }
@@ -759,7 +854,13 @@ document.getElementById('tabDays').addEventListener('click', ()=>switchTab('days
 document.getElementById('tabUrlopy').addEventListener('click', ()=>switchTab('urlopy'));
 
 document.getElementById('toggleDetail').addEventListener('click', ()=>{
-  document.getElementById('detailPanel').classList.toggle('open');
+  document.getElementById('detailOverlay').classList.add('open');
+});
+document.getElementById('closeDetail').addEventListener('click', ()=>{
+  document.getElementById('detailOverlay').classList.remove('open');
+});
+document.getElementById('detailOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'detailOverlay') e.target.classList.remove('open');
 });
 
 ['chkBiuro','chkObiekt','chkWizja'].forEach(id=>{
@@ -782,19 +883,41 @@ document.getElementById('inpNorma').addEventListener('change', (e)=>{
   updateSummary();
 });
 
+async function syncMonthWithRef(){
+  const y = refDate.getFullYear(), m = refDate.getMonth()+1;
+  const monthChanged = (y!==curYear || m!==curMonth);
+  if(monthChanged){
+    curYear = y; curMonth = m;
+    monthData = await loadMonth(curYear, curMonth); ensureMeta();
+    refreshYearlyUrlop();
+  }
+  if(viewMode==='dzien') openDay = refDate.getDate();
+  else if(monthChanged) openDay = null;
+  render();
+  if(currentTab==='urlopy') renderUrlopyTab();
+}
+
+function setViewMode(vm){
+  viewMode = vm;
+  document.querySelectorAll('.viewmode-switch button').forEach(b=>b.classList.toggle('active', b.dataset.vm===vm));
+  if(vm==='dzien') openDay = refDate.getDate();
+  render();
+}
+document.querySelectorAll('.viewmode-switch button').forEach(btn=>{
+  btn.addEventListener('click', ()=>setViewMode(btn.dataset.vm));
+});
+
 document.getElementById('prevM').addEventListener('click', async ()=>{
-  curMonth--; if(curMonth<1){curMonth=12; curYear--;}
-  openDay = null;
-  monthData = await loadMonth(curYear, curMonth); ensureMeta();
-  render(); if(currentTab==='urlopy') renderUrlopyTab();
-  refreshYearlyUrlop();
+  if(viewMode==='dzien') refDate.setDate(refDate.getDate()-1);
+  else if(viewMode==='tydzien') refDate.setDate(refDate.getDate()-7);
+  else refDate.setMonth(refDate.getMonth()-1);
+  await syncMonthWithRef();
 });
 document.getElementById('nextM').addEventListener('click', async ()=>{
-  curMonth++; if(curMonth>12){curMonth=1; curYear++;}
-  openDay = null;
-  monthData = await loadMonth(curYear, curMonth); ensureMeta();
-  render(); if(currentTab==='urlopy') renderUrlopyTab();
-  refreshYearlyUrlop();
+  if(viewMode==='dzien') refDate.setDate(refDate.getDate()+1);
+  else if(viewMode==='tydzien') refDate.setDate(refDate.getDate()+7);
+  else refDate.setMonth(refDate.getMonth()+1);
+  await syncMonthWithRef();
 });
 
 function excelFracToTime(v){
@@ -803,20 +926,6 @@ function excelFracToTime(v){
   const h = Math.floor(totalMin/60), m = totalMin%60;
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 }
-
-document.getElementById('btnTestSave').addEventListener('click', async ()=>{
-  try{
-    const res = await fetch(GAS_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({key:'TEST', value:'HELLO_' + Date.now()})
-    });
-    const text = await res.text();
-    alert('Status: ' + res.status + '\nOdpowiedź serwera: ' + text + '\n\nJeśli status to 200 i widzisz {"ok":true} — sprawdź w Arkuszu zakładkę "Data", wiersz TEST powinien się pojawić.');
-  }catch(err){
-    alert('Fetch się nie wykonał: ' + err.message + '\n\nTo zwykle oznacza blokadę CORS albo brak sieci.');
-  }
-});
 
 document.getElementById('importFile').addEventListener('change', async (e)=>{
   const file = e.target.files[0];
@@ -867,38 +976,6 @@ document.getElementById('importFile').addEventListener('change', async (e)=>{
     alert('Import się nie udał: ' + err.message);
   }
   e.target.value = '';
-});
-
-document.getElementById('btnClear').addEventListener('click', ()=>{
-  if(confirm(`Wyczyścić wszystkie wpisy dla ${MONTH_NAMES[curMonth-1]} ${curYear}?`)){
-    const n = daysInMonth(curYear,curMonth);
-    monthData = []; for(let i=0;i<n;i++) monthData.push(emptyDay());
-    ensureMeta();
-    saveMonth(); openDay=null; render();
-    refreshYearlyUrlop();
-  }
-});
-
-document.getElementById('btnCopy').addEventListener('click', ()=>{
-  const n = daysInMonth(curYear,curMonth);
-  let lines = [];
-  for(let dayNum=1; dayNum<=n; dayNum++){
-    const d = monthData[dayNum-1];
-    if(d.dayType==='urlop'){
-      lines.push([dayNum, 'URLOP', '', '', '', '', '', '0:00', d.urlopKomentarz].join('\t'));
-    } else {
-      const b = d.blocks;
-      lines.push([dayNum,
-        b[0]?.start||'', b[0]?.end||'',
-        b[1]?.start||'', b[1]?.end||'',
-        b[2]?.start||'', b[2]?.end||'',
-        fmtHM(dayWorkedMinutes(d)), composeOpis(d)].join('\t'));
-    }
-  }
-  const text = lines.join('\n');
-  navigator.clipboard.writeText(text).then(()=>{
-    alert('Skopiowano — możesz wkleić do arkusza.');
-  }).catch(()=>{ prompt('Skopiuj ręcznie:', text); });
 });
 
 document.getElementById('btnExport').addEventListener('click', exportXlsx);
@@ -1022,6 +1099,7 @@ function isIOS(){
   ensureMeta();
   render();
   refreshYearlyUrlop();
+  checkConnection();
 })();
 </script>
 </body>
