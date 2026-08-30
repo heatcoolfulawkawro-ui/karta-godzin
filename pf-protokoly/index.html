@@ -146,7 +146,7 @@ if(sessionValid()){ showApp(); }
 
 // ============ API ============
 async function apiGet(params){
-  const url = GAS_URL + '?' + new URLSearchParams(params).toString();
+  const url = GAS_URL + '?' + new URLSearchParams(Object.assign({token: ADMIN_PASSWORD}, params)).toString();
   const res = await fetch(url);
   return res.json();
 }
@@ -154,7 +154,7 @@ async function apiPost(body){
   const res = await fetch(GAS_URL, {
     method: 'POST',
     headers: {'Content-Type': 'text/plain;charset=utf-8'},
-    body: JSON.stringify(body)
+    body: JSON.stringify(Object.assign({token: ADMIN_PASSWORD}, body))
   });
   return res.json();
 }
