@@ -45,6 +45,16 @@ function jsonOut(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
+// Musi być identyczne z ADMIN_PASSWORD w index.html — to bariera przed
+// wywołaniem tego /exec przez kogoś, kto zna sam adres URL, ale nie appkę.
+const SHARED_SECRET = 'Hyousng$19892508';
+
+function checkAuth(token) {
+  if (token !== SHARED_SECRET) {
+    throw new Error('Brak autoryzacji');
+  }
+}
+
 function listKlienci() {
   const sheet = getKlienciSheet();
   const rows = sheet.getDataRange().getValues();
@@ -155,6 +165,7 @@ function bulkImport(rows) {
 
 function doGet(e) {
   try {
+    checkAuth(e.parameter.token);
     const action = e.parameter.action;
     if (action === 'list_klienci') {
       return jsonOut({ ok: true, data: listKlienci() });
@@ -171,6 +182,7 @@ function doGet(e) {
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
+    checkAuth(body.token);
     const action = body.action;
     if (action === 'add_klient') {
       return jsonOut({ ok: true, data: addKlient(body.nazwa) });
