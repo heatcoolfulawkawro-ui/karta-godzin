@@ -29,6 +29,9 @@
   .icontoolbar{ display:flex; align-items:center; gap:8px; margin-top:8px; }
   .icobtn{ position:relative; width:36px; height:36px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:15px; color:var(--ink); overflow:hidden; line-height:1; }
   .icobtn.green{ color:var(--green); border-color:#2f4a3a; }
+  .icobtn.pulse{ background:var(--amber); color:#20140a; border-color:var(--amber); animation:pulseglow 1s ease-in-out infinite; }
+  .icobtn.pulse .xlstag{ color:#20140a; }
+  @keyframes pulseglow{ 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
   .icobtn .xlstag{ font-size:7px; color:var(--green); font-weight:700; margin-top:1px; }
   .icobtn input[type=file]{ position:absolute; inset:0; opacity:0; width:100%; height:100%; }
   .statusdot{ width:12px; height:12px; border-radius:50%; background:var(--ink-dim); flex:0 0 12px; margin-right:2px; }
@@ -177,7 +180,7 @@
       ↓<span class="xlstag">xlsx</span>
       <input type="file" id="importFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
     </label>
-    <button class="icobtn green" id="btnExport" title="Eksport .xlsx">↑<span class="xlstag">xlsx</span></button>
+    <a class="icobtn green" id="btnExport" title="Eksport .xlsx" href="#">↑<span class="xlstag" id="btnExportTag">xlsx</span></a>
   </div>
 
   <div class="summarybar" id="viewDays">
@@ -1101,8 +1104,6 @@ document.getElementById('importFile').addEventListener('change', async (e)=>{
   e.target.value = '';
 });
 
-document.getElementById('btnExport').addEventListener('click', exportXlsx);
-
 // Merges dojazd-linked blocks into continuous paid spans; przerwa-linked gaps
 // stay as separate spans (unpaid, matches original 3-block Excel layout).
 function exportSpans(d){
@@ -1132,7 +1133,7 @@ function exportSpans(d){
   return spans.slice(0,3);
 }
 
-function exportXlsx(){
+function buildWorkbook(){
   const ws = {}; const merges = [];
   const setCell = (addr, value, opts) => { ws[addr] = Object.assign({v:value}, opts||{}); };
 
@@ -1186,28 +1187,52 @@ function exportXlsx(){
   XLSX.utils.book_append_sheet(wb, ws, 'Arkusz1');
   const yy = String(curYear).slice(-2);
   const filename = `${curMonth}_${yy}_PF.xlsx`;
-
-  try{
-    if(isIOS()){
-      // Bezpośrednia nawigacja całej strony na data: URI — iOS Safari sam
-      // przejmuje nierenderowalny typ pliku i oddaje go do systemowego
-      // widoku "Otwórz w..." (tak jak przy pobieraniu PDF-a). Wersja z
-      // ukrytym <a download> + click() nie uruchamiała się niezawodnie.
-      const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
-      const uri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
-      window.location.href = uri;
-    } else {
-      XLSX.writeFile(wb, filename);
-    }
-  } catch(err){
-    alert('Eksport się nie udał: ' + err.message);
-  }
+  return {wb, filename};
 }
 
 function isIOS(){
   return /iP(hone|od|ad)/.test(navigator.platform)
     || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
 }
+
+// Desktop: single tap, standard download, works reliably already.
+// iOS: two real taps on a genuine <a href> — the first tap only BUILDS the
+// file and attaches it to the link (preventDefault, no navigation yet); the
+// second tap is a real, unassisted user click on an anchor with a real href,
+// which Safari treats like any other link/download instead of a script-
+// triggered one. This mirrors the native file-picker import, which already
+// works reliably because it's a genuine browser control, not JS-simulated.
+document.getElementById('btnExport').addEventListener('click', function(e){
+  const tag = document.getElementById('btnExportTag');
+  if(!isIOS()){
+    e.preventDefault();
+    try{
+      const {wb, filename} = buildWorkbook();
+      XLSX.writeFile(wb, filename);
+    }catch(err){ alert('Eksport się nie udał: ' + err.message); }
+    return;
+  }
+  if(this.dataset.ready === '1'){
+    // Real href already set below — let the browser handle this tap natively.
+    setTimeout(()=>{
+      this.dataset.ready = '';
+      this.removeAttribute('href');
+      tag.textContent = 'xlsx';
+      this.classList.remove('pulse');
+    }, 600);
+    return;
+  }
+  e.preventDefault();
+  try{
+    const {wb, filename} = buildWorkbook();
+    const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
+    this.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
+    this.setAttribute('download', filename);
+    this.dataset.ready = '1';
+    tag.textContent = 'gotowe!';
+    this.classList.add('pulse');
+  }catch(err){ alert('Eksport się nie udał: ' + err.message); }
+});
 
 (async function init(){
   monthData = await loadMonth(curYear, curMonth);
