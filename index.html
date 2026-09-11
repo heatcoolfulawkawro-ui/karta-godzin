@@ -541,8 +541,19 @@ function updateCondensedPanel(t){
   document.getElementById('condUrlopChip').textContent = `${yearlyUrlopUsed}/${URLOP_LIMIT} (${pct}%)`;
 }
 
+// Instant local correction when toggling a day's type — no network round-trip,
+// so the chip is right immediately instead of racing the background save.
+function bumpYearlyUrlop(wasUrlop, isUrlopNow){
+  if(wasUrlop === isUrlopNow) return;
+  yearlyUrlopUsed += isUrlopNow ? 1 : -1;
+  if(yearlyUrlopUsed < 0) yearlyUrlopUsed = 0;
+  updateCondensedPanel();
+}
+
 // Sums urlop days across all 12 months of the year from the Google Sheet,
 // so the yearly counter is correct regardless of which month is open.
+// Used for page load / month navigation / import / clear — not for single
+// day toggles (see bumpYearlyUrlop above, which avoids a race with the save).
 async function refreshYearlyUrlop(){
   const year = curYear;
   const keys = [];
@@ -745,9 +756,10 @@ function renderBody(dayNum){
     body.innerHTML = html;
     body.querySelectorAll('[data-act^="type-"]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
+        const wasUrlop = d.dayType === 'urlop';
         d.dayType = btn.dataset.act === 'type-urlop' ? 'urlop' : 'praca';
         saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
-        refreshYearlyUrlop();
+        bumpYearlyUrlop(wasUrlop, d.dayType==='urlop');
       });
     });
     const ta = body.querySelector('.urlop-komentarz');
@@ -783,9 +795,10 @@ function renderBody(dayNum){
 
   body.querySelectorAll('[data-act^="type-"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      const wasUrlop = d.dayType === 'urlop';
       d.dayType = btn.dataset.act === 'type-urlop' ? 'urlop' : 'praca';
       saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
-      refreshYearlyUrlop();
+      bumpYearlyUrlop(wasUrlop, d.dayType==='urlop');
     });
   });
 
@@ -1176,26 +1189,18 @@ function exportXlsx(){
 
   try{
     if(isIOS()){
-      // iOS Safari (zwłaszcza dla stron otwartych lokalnie z Plików) zwykle nie obsługuje
-      // poprawnie pobierania przez Blob/createObjectURL — używamy data: URI zamiast tego.
+      // Bezpośrednia nawigacja całej strony na data: URI — iOS Safari sam
+      // przejmuje nierenderowalny typ pliku i oddaje go do systemowego
+      // widoku "Otwórz w..." (tak jak przy pobieraniu PDF-a). Wersja z
+      // ukrytym <a download> + click() nie uruchamiała się niezawodnie.
       const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
       const uri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
-      const a = document.createElement('a');
-      a.href = uri;
-      a.download = filename;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(()=>{
-        alert('Jeśli plik nie zapisał się automatycznie: otworzy się podgląd — dotknij ikony udostępniania (⬆️) i wybierz "Zapisz w Plikach" lub "Otwórz w Numbers/Excel".');
-      }, 300);
+      window.location.href = uri;
     } else {
       XLSX.writeFile(wb, filename);
     }
   } catch(err){
-    alert('Eksport się nie udał: ' + err.message + '\n\nUżyj przycisku "Kopiuj" i wklej dane ręcznie do arkusza.');
+    alert('Eksport się nie udał: ' + err.message);
   }
 }
 
