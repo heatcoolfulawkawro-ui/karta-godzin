@@ -59,7 +59,7 @@ logowania.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
   (nadgodziny/niedobór), niebieski = wartości referencyjne.
 
-## Funkcje (stan: 19.09.2026)
+## Funkcje (stan: 19.09.2026, v1.1)
 
 - Dzień = Praca albo Urlop (z komentarzem). Praca: bloki czasu z kategorią —
   Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok. Organizacja
@@ -67,15 +67,27 @@ logowania.
   godzin pracy.
 - Blok Dojazd: start wypełnia się końcem poprzedniego bloku. Luka między
   blokami = dojazd (liczy się do pracy) albo przerwa (nie liczy się).
+- Do 12 bloków na dzień (`MAX_BLOCKS`). Bloki z wpisanym od–do zwijają się w
+  paski (kategoria, godziny, czas, początek komentarza); dotknięcie paska
+  rozwija pełną edycję. Stan zwinięcia (`blockUI`) jest tylko na ekranie —
+  nie trafia do zapisywanych danych.
 - Nocna zmiana wykrywana automatycznie (przejście przez północ).
 - Widoki Dzień / Tydzień / Miesiąc; strzałki `‹ ›` przesuwają o 1 dzień /
   7 dni / 1 miesiąc; dotknięcie dnia otwiera pełną kartę edycji.
-- Panel: suma, norma, nadgodziny/niedobór, efektywność %, dni z wpisem,
-  urlop X/26.
+- Panel (kompaktowy): suma, norma, nadgodziny/niedobór, efektywność %, dni z
+  wpisem, urlop X/26 oraz średnia dzienna z przełącznikiem (dotknięcie
+  kafelka, zapamiętywane w ustawieniach jako `avgMode`): `norma` = cała suma
+  godzin / normatywne dni robocze od 1. do ostatniego dnia z wpisem (bez
+  weekendów, świąt i urlopów) — do porównania z 8:00; `real` = cała suma /
+  wszystkie dni z wpisem (soboty, niedziele i święta też).
+- Podsumowanie miesiąca to osobna strona na pełny ekran z „‹ Wróć".
 - Święta ustawowe: stałe daty + liczone z Wielkanocy (algorytm
   Meeusa/Jonesa/Butchera; Pon. Wielkanocny = +1, Boże Ciało = +60).
 - Zakładka Urlopy (rok): lista dni + wykres słupkowy per miesiąc.
-- Import ze starego formatu .xlsx, eksport do .xlsx (SheetJS z CDN).
+- Import/eksport .xlsx (SheetJS z CDN). Bloki połączone dojazdem sklejają się
+  w jeden przedział, rozdziela je tylko przerwa. Szablon ma 8 par od–do
+  (`XLSX_SPAN_COLS`): stare B–G oraz dodatkowe U–AD za kolumną „Uwagi", żeby
+  stary układ i stare pliki dalej działały; formuła w H sumuje wszystkie.
 - Światełko statusu połączenia z Arkuszem (ping przy starcie).
 
 ## Otwarte tematy
