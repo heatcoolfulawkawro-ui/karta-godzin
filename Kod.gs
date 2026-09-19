@@ -17,6 +17,10 @@ const LEGACY_OWNER = 'PF'; // dane tego użytkownika leżą pod starymi, niepref
 // działa tylko przy pustej tabeli Users i tylko z kluczem pasującym do tego skrótu.
 const SETUP_KEY_SHA256 = 'eb51f1764184704daa527ded287062475859b31e55ca80607501c0fd9a7da773';
 
+// SHA-256 klucza kopii zapasowej (sam klucz leży tylko na komputerze Szefa, zaszyfrowany
+// kontem Windows). Pozwala WYŁĄCZNIE pobrać pełny zrzut danych (akcja backup, tylko odczyt).
+const BACKUP_KEY_SHA256 = '405126d49a5b99b58eb12240ce34b3659ca96e12c3bfb3f454beceaa738b3adc';
+
 const USERS_SHEET = 'Users';
 const SESSIONS_SHEET = 'Sessions';
 const USERS_HEADERS = ['id', 'name', 'role', 'salt', 'hash', 'fails', 'lockUntil', 'visibleMonths', 'active', 'lockCount', 'createdAt', 'canExport', 'canImport'];
@@ -97,6 +101,7 @@ function dispatch_(b) {
   const action = String(b.action);
   if (action === 'login') return login_(b);
   if (action === 'bootstrap') return bootstrap_(b);
+  if (action === 'backup') return backup_(b);
   // Przejściowo: eksport bez tokenu dla appki w wersji sprzed logowania.
   if (action === 'export' && LEGACY_OPEN && !b.token) return exportXlsx_(b, null);
 
@@ -134,6 +139,7 @@ function adminAction_(user, action, b) {
     case 'admin.setActive': return adminSetActive_(user, b);
     case 'admin.get': return adminGet_(b);
     case 'admin.set': return adminSet_(b);
+    case 'admin.backup': return buildDump_();
   }
   return fail_('bad');
 }
@@ -285,6 +291,33 @@ function adminSetVisibility_(b) {
   u.visibleMonths = months;
   saveUser_(u);
   return { ok: true };
+}
+
+// Pełny zrzut danych do kopii zapasowej: wszystkie wiersze zakładki Data (dane miesięcy
+// wszystkich kont), konta bez hashy i soli (PIN-y w razie odtwarzania resetuje się), dziennik zmian.
+// Bez sesji i bez pepperu — kopia nie zawiera niczego, czym da się zalogować.
+function backup_(b) {
+  if (sha256Hex_(String(b.backupKey || '')) !== BACKUP_KEY_SHA256) return fail_('auth');
+  return buildDump_();
+}
+
+function buildDump_() {
+  const data = getDataSheet().getDataRange().getValues()
+    .filter(function (r, i) { return !(i === 0 && r[0] === 'key'); })
+    .map(function (r) { return [String(r[0]), String(r[1])]; });
+  const users = readUsers_().map(function (u) {
+    return {
+      id: u.id, name: u.name, role: u.role, visibleMonths: u.visibleMonths, active: u.active,
+      canExport: u.canExport, canImport: u.canImport, createdAt: u.createdAt
+    };
+  });
+  const audit = getSheet_(AUDIT_SHEET, AUDIT_HEADERS).getDataRange().getValues().slice(1);
+  return {
+    ok: true, format: 1,
+    generated: Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+    counts: { data: data.length, users: users.length, audit: audit.length },
+    data: data, users: users, audit: audit
+  };
 }
 
 function adminSetPerms_(b) {
