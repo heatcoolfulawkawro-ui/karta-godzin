@@ -209,8 +209,8 @@
 <div class="savetag" id="savetag">zapisano</div>
 
 <header>
-  <h1>Karta godzin <span class="vertag">v1.2.1</span></h1>
-  <div class="who">Paweł Fuławka · <span class="buildtag">19.09.2026 10:07</span></div>
+  <h1>Karta godzin <span class="vertag">v1.2.2</span></h1>
+  <div class="who">Paweł Fuławka · <span class="buildtag">19.09.2026 14:20</span></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
     <div class="label" id="monthLabel">—</div>
@@ -1404,8 +1404,26 @@ function buildWorkbook(){
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Arkusz1');
   const yy = String(curYear).slice(-2);
-  const filename = `${curMonth}_${yy}_PF.xlsx`;
+  const filename = `${curMonth}_${yy}_${USER_INITIALS}.xlsx`;
   return {wb, filename};
+}
+
+// Skrót imienny do nazwy pliku (M_RR_SKRÓT.xlsx). Po wprowadzeniu logowania
+// będzie brany z konta serwisanta.
+const USER_INITIALS = 'PF';
+
+// Eksport przez Apps Script: plik ląduje tymczasowo na Dysku pod właściwą nazwą,
+// a appka dostaje zwykły link do pobrania (działa też w Chrome na iOS).
+async function uploadExport(wb, filename){
+  const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({action: 'export', name: filename, b64})
+  });
+  const out = await res.json();
+  if(!out || !out.ok || !out.url) throw new Error((out && out.error) || 'brak linku');
+  return out.url;
 }
 
 function isIOS(){
@@ -1438,7 +1456,7 @@ document.getElementById('btnExport').addEventListener('click', async function(e)
       this.removeAttribute('href');
       tag.textContent = 'xlsx';
       this.classList.remove('pulse');
-      try{ URL.revokeObjectURL(blobUrl); }catch(_){}
+      if(blobUrl.startsWith('blob:')){ try{ URL.revokeObjectURL(blobUrl); }catch(_){} }
     }, 600);
     return;
   }
@@ -1456,12 +1474,18 @@ document.getElementById('btnExport').addEventListener('click', async function(e)
         if(err && err.name === 'AbortError') return;
       }
     }
-    this.href = URL.createObjectURL(new Blob([bytes], {type: mime}));
-    this.setAttribute('download', filename);
+    tag.textContent = 'wysyłam…';
+    try{
+      this.href = await uploadExport(wb, filename);
+      this.removeAttribute('download');
+    }catch(_){
+      this.href = URL.createObjectURL(new Blob([bytes], {type: mime}));
+      this.setAttribute('download', filename);
+    }
     this.dataset.ready = '1';
-    tag.textContent = 'gotowe!';
+    tag.textContent = 'pobierz!';
     this.classList.add('pulse');
-  }catch(err){ alert('Eksport się nie udał: ' + err.message); }
+  }catch(err){ tag.textContent = 'xlsx'; alert('Eksport się nie udał: ' + err.message); }
 });
 
 (async function init(){
