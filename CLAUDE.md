@@ -23,7 +23,10 @@ logowania.
 
 - **Frontend**: push → GitHub Pages publikuje samo (~1 min). Appka sama
   wykrywa nową wersję (HEAD + `last-modified`, skrypt na górze `index.html`)
-  i przeładowuje się — nie ma ręcznego tagu wersji do podbijania.
+  i przeładowuje się. Przy tytule jest znacznik wersji (`.vertag`) i stempel
+  publikacji (`.buildtag`, format `DD.MM.RRRR GG:MM`) — przy każdym wydaniu
+  frontendu ustaw stempel na bieżący czas, żeby na telefonie było widać,
+  która wersja jest załadowana.
 - **Backend**: push zmieniający `Kod.gs` lub `appsscript.json` uruchamia
   `.github/workflows/deploy-gas.yml`: `clasp push -f` + `clasp deploy
   --deploymentId <istniejące>` (sekret `CLASPRC_JSON`). Nigdy nie wdrażaj bez
@@ -59,7 +62,9 @@ logowania.
 ## Funkcje (stan: 19.09.2026)
 
 - Dzień = Praca albo Urlop (z komentarzem). Praca: bloki czasu z kategorią —
-  Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok.
+  Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok. Organizacja
+  ma własny wiersz i przełącznik w podsumowaniu; Dojazd zawsze liczy się do
+  godzin pracy.
 - Blok Dojazd: start wypełnia się końcem poprzedniego bloku. Luka między
   blokami = dojazd (liczy się do pracy) albo przerwa (nie liczy się).
 - Nocna zmiana wykrywana automatycznie (przejście przez północ).
