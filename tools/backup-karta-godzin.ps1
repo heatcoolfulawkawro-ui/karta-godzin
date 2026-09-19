@@ -1,15 +1,18 @@
 # Backup karta-godzin: pobiera pelny zrzut danych z Apps Script i zapisuje w kilku miejscach.
-# Klucz kopii jest zaszyfrowany kontem Windows w %LOCALAPPDATA%\karta-godzin-backup\key.dat
-# (nie ma go w repo). Skrypt NICZEGO nie kasuje - kopie sa male, wiec zostaja wszystkie.
+# Klucz kopii jest zaszyfrowany kontem Windows (DPAPI) w F:\AI\_backupy\_config\key.dat (poza repo).
+# Nie uzywamy %LOCALAPPDATA%: pakiet aplikacji Claude wirtualizuje tam zapisy i Harmonogram
+# widzialby inne pliki niz sesja Claude.
+# Skrypt NICZEGO nie kasuje - kopie sa male, wiec zostaja wszystkie.
 # Uruchamiany z Harmonogramu zadan (codziennie + przy logowaniu) albo recznie:
 #   powershell -ExecutionPolicy Bypass -File backup-karta-godzin.ps1 [-Force]
 param([switch]$Force)
 
 $ErrorActionPreference = 'Stop'
-$GasUrl   = 'https://script.google.com/macros/s/AKfycby09rSaJwoPPl6KeFn80xCOTiOzYM4EZyKy5XuJ0pBA28-x051wB9HXg_osSqUrjoHA/exec'
-$Primary  = 'F:\AI\_backupy\karta-godzin'
-$KeyFile  = Join-Path $env:LOCALAPPDATA 'karta-godzin-backup\key.dat'
-$LogFile  = Join-Path $env:LOCALAPPDATA 'karta-godzin-backup\backup.log'
+$GasUrl    = 'https://script.google.com/macros/s/AKfycby09rSaJwoPPl6KeFn80xCOTiOzYM4EZyKy5XuJ0pBA28-x051wB9HXg_osSqUrjoHA/exec'
+$Primary   = 'F:\AI\_backupy\karta-godzin'
+$ConfigDir = 'F:\AI\_backupy\_config'
+$KeyFile   = Join-Path $ConfigDir 'key.dat'
+$LogFile   = Join-Path $ConfigDir 'backup.log'
 
 function Log($msg) {
     $line = '{0}  {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $msg
@@ -30,8 +33,13 @@ function Get-Destinations {
 }
 
 try {
-    New-Item -ItemType Directory -Force -Path (Split-Path $LogFile) | Out-Null
+    New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
     New-Item -ItemType Directory -Force -Path $Primary | Out-Null
+
+    # Dostep do klucza sprawdzany przy kazdym uruchomieniu (takze gdy dzisiejsza kopia juz jest).
+    if (-not (Test-Path $KeyFile)) { throw "Brak klucza kopii: $KeyFile" }
+    $secure = Get-Content -Path $KeyFile | ConvertTo-SecureString
+    Log ('Uruchomienie jako {0}; klucz kopii odczytany.' -f $env:USERNAME)
 
     $today = Get-Date -Format 'yyyy-MM-dd'
     $existing = Get-ChildItem -Path $Primary -Filter "karta-godzin_${today}_*.json" -ErrorAction SilentlyContinue
@@ -39,8 +47,6 @@ try {
         Log "Kopia z dzisiaj juz istnieje ($($existing[0].Name)) - pomijam (uzyj -Force, by wymusic)."
         $target = $existing[0]
     } else {
-        if (-not (Test-Path $KeyFile)) { throw "Brak klucza kopii: $KeyFile" }
-        $secure = Get-Content -Path $KeyFile | ConvertTo-SecureString
         $key = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
         $body = [Text.Encoding]::UTF8.GetBytes((@{ action = 'backup'; backupKey = $key } | ConvertTo-Json -Compress))
         $key = $null
@@ -79,6 +85,6 @@ try {
     Log ("Najnowsza kopia: {0} ({1} KB)" -f $newest.Name, [math]::Round($newest.Length / 1KB, 1))
     exit 0
 } catch {
-    Log ("BLAD KOPII: " + $_.Exception.Message)
+    try { Log ("BLAD KOPII: " + $_.Exception.Message) } catch { }
     exit 1
 }

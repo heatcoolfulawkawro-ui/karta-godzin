@@ -126,14 +126,15 @@ logowania.
   dane per osoba, ewentualny PIN) i makiety przed kodowaniem.
 - Eksport .xlsx na iPhonie: DZIAŁA od v1.2.2 (potwierdził Szef 19.09.2026, Chrome iOS).
 - KOPIE ZAPASOWE (19.09.2026): backend ma akcję `backup` (tylko odczyt; klucz kopii — jego SHA-256 jest w Kod.gs,
-  sam klucz tylko na PC, zaszyfrowany kontem Windows: %LOCALAPPDATA%karta-godzin-backupkey.dat) oraz `admin.backup`
+  sam klucz tylko na PC, zaszyfrowany kontem Windows (DPAPI): F:AI_backupy_configkey.dat, tam też backup.log) oraz `admin.backup`
   (pod zalogowanego admina — do przycisku „Pobierz kopię” na telefonie, etap 2). Zrzut = wszystkie wiersze Data (dane
   wszystkich kont), konta BEZ hashy/soli (po odtworzeniu resetuje się PIN-y), dziennik zmian; bez sesji i pepperu.
   Skrypt `tools/backup-karta-godzin.ps1` zapisuje JSON + SHA-256 w F:AI_backupykarta-godzin (poza repo — dane
   osobowe!), kopiuje na H:BACKUP-karta-godzin i na dysk zewnętrzny o etykiecie KOPIE*/ZEWN*, gdy jest podpięty; niczego
   nie kasuje. UWAGA: C, F, G, H, I to partycje JEDNEGO fizycznego SSD — H: nie chroni przed awarią dysku; potrzebny dysk
-  zewnętrzny (BitLocker, odłączany). Zadanie Harmonogramu `KartaGodzin-Backup` (20:00 + przy logowaniu) — patrz stan
-  weryfikacji w rozmowie: ręczne uruchomienie działa, automatyczne było niepotwierdzone. Odtwarzanie: wiersze data →
+  zewnętrzny (BitLocker, odłączany). Zadanie Harmonogramu `KartaGodzin-Backup` (20:00 + przy logowaniu, za zgodą Szefa) działa;
+  klucz i log NIE mogą leżeć w %LOCALAPPDATA% — pakiet aplikacji Claude wirtualizuje tam zapisy i Harmonogram widzi
+  inne pliki (tak zepsuł się pierwszy test). Pierwsze pełne automatyczne pobranie: następny dzień. Odtwarzanie: wiersze data →
   zakładka Data (klucz, wartość), konta/PIN-y przez admin.createUser/setPin.
 - KONTA I BEZPIECZEŃSTWO (w toku, etap 1 z 3): backend z logowaniem jest wdrożony (Kod.gs, wersja @6),
   ale NADAL działa też stary otwarty tryb (`LEGACY_OPEN = true`), bo frontend jeszcze nie ma
