@@ -47,7 +47,8 @@ logowania.
   `application/json` wywołuje preflight CORS, a przekierowanie 302 zamienia
   POST na GET i dane po cichu się nie zapisują.
 - Format danych: JSON per miesiąc pod kluczem
-  `karta_godzin_v3_{rok}_{miesiąc}`. Zmiana formatu = migracja istniejących
+  `karta_godzin_v3_{rok}_{miesiąc}`; dzień = `{dayType, urlopKomentarz, nocna,
+  blocks:[{start,end,kind,komentarz,gapAfter}]}` (`nocna` opcjonalne). Zmiana formatu = migracja istniejących
   danych w Arkuszu, nie rób tego mimochodem.
 - `localStorage` to natychmiastowy bufor, `fetch` do Arkusza idzie w tle —
   appka ma działać offline.
@@ -59,7 +60,7 @@ logowania.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
   (nadgodziny/niedobór), niebieski = wartości referencyjne.
 
-## Funkcje (stan: 19.09.2026, v1.1)
+## Funkcje (stan: 19.09.2026, v1.2)
 
 - Dzień = Praca albo Urlop (z komentarzem). Praca: bloki czasu z kategorią —
   Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok. Organizacja
@@ -71,7 +72,17 @@ logowania.
   paski (kategoria, godziny, czas, początek komentarza); dotknięcie paska
   rozwija pełną edycję. Stan zwinięcia (`blockUI`) jest tylko na ekranie —
   nie trafia do zapisywanych danych.
-- Nocna zmiana wykrywana automatycznie (przejście przez północ).
+- Walidacja godzin: start wcześniejszy niż koniec poprzedniego wpisu (albo
+  koniec nie później niż start) = błąd — wpis ma czerwoną ramkę i komunikat,
+  NIE jest liczony, a dzień dostaje ⚠. Przejście przez północ (21:00–03:00)
+  jest dozwolone tylko gdy dzień ma włączone „🌙 Praca w nocy" (pole `nocna` w
+  danych dnia; `computeEffectiveBlocks(blocks, allowWrap)`). Dni zapisane przed
+  v1.2, które korzystały z automatycznego zawijania, dostają `nocna:true` przy
+  wczytaniu (`legacyNightFlag`), więc stare sumy się nie zmieniają.
+- Wstawianie wpisów: „＋ wstaw wpis" między wpisami (start = koniec
+  poprzedniego) oraz „＋ wpis" w linijce luki — zamienia lukę na gotowy wpis
+  Dojazd od–do (suma bez zmian). „+ kolejny przedział" też startuje od końca
+  poprzedniego wpisu. Luka: 🚗 Dojazd (liczona) albo ☕ Przerwa (nie liczona).
 - Widoki Dzień / Tydzień / Miesiąc; strzałki `‹ ›` przesuwają o 1 dzień /
   7 dni / 1 miesiąc; dotknięcie dnia otwiera pełną kartę edycji.
 - Panel (kompaktowy): suma, norma, nadgodziny/niedobór, efektywność %, dni z
@@ -80,7 +91,8 @@ logowania.
   godzin / normatywne dni robocze od 1. do ostatniego dnia z wpisem (bez
   weekendów, świąt i urlopów) — do porównania z 8:00; `real` = cała suma /
   wszystkie dni z wpisem (soboty, niedziele i święta też).
-- Podsumowanie miesiąca to osobna strona na pełny ekran z „‹ Wróć".
+- Podsumowanie miesiąca to osobna strona na pełny ekran z „‹ Wróć"; przy
+  każdej strefie % udziału w przepracowanym czasie (5 stref = 100%) i pasek.
 - Święta ustawowe: stałe daty + liczone z Wielkanocy (algorytm
   Meeusa/Jonesa/Butchera; Pon. Wielkanocny = +1, Boże Ciało = +60).
 - Zakładka Urlopy (rok): lista dni + wykres słupkowy per miesiąc.

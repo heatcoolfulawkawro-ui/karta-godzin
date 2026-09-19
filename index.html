@@ -63,7 +63,7 @@
   .summarybar .box{ flex:1; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:7px 8px; text-align:center; }
   .summarybar .box .v{ font-size:16px; font-weight:700; color:var(--amber); }
   .summarybar .box .l{ font-size:9.5px; color:var(--ink-dim); margin-top:1px; }
-  .summarybar .toggle{ text-align:center; font-size:11px; color:var(--ink-dim); margin-top:8px; }
+  .summarybar .toggle{ text-align:center; font-size:11.5px; font-weight:600; color:var(--ink); margin-top:6px; padding:6px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; }
   .condensed{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:6px 8px; }
   .cond-row1{ display:flex; gap:8px; margin-bottom:5px; }
   .cond-row1 .c1{ flex:1; text-align:center; }
@@ -84,6 +84,10 @@
   .detail-row:last-child{ border-bottom:none; }
   .detail-row label{ display:flex; align-items:center; gap:6px; color:var(--ink); }
   .detail-row .val{ font-weight:700; }
+  .detail-row.zone{ flex-wrap:wrap; }
+  .detail-row .pct{ margin-left:auto; margin-right:10px; color:var(--ink-dim); font-size:11px; }
+  .zonebar{ flex:0 0 100%; height:4px; border-radius:2px; background:var(--panel2); margin-top:4px; overflow:hidden; }
+  .zonebar i{ display:block; height:100%; width:0; border-radius:2px; }
   .detail-row .hint{ color:var(--ink-dim); font-size:10px; }
   .detail-row input[type=checkbox]{ width:15px; height:15px; }
   .detail-row input[type=number]{ width:56px; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:3px 5px; text-align:center; }
@@ -138,6 +142,15 @@
   .blockbar .bb-dur{ color:var(--ink-dim); white-space:nowrap; }
   .blockbar .bb-kom{ flex:1; min-width:0; color:var(--ink-dim); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .blockbar .bb-chev{ color:var(--ink-dim); }
+  .blockbar.err{ border-color:var(--red); }
+  .blockerr{ font-size:11px; color:var(--red); margin-top:4px; }
+  .blockerr:empty{ display:none; }
+  .nightrow{ display:flex; align-items:center; justify-content:space-between; margin-top:8px; font-size:11.5px; color:var(--ink-dim); }
+  .nightrow input{ width:16px; height:16px; }
+  .insline{ display:flex; justify-content:center; margin:3px 0 0; }
+  .insline button, .gapbox .gapins{ background:none; border:1px dashed var(--line); color:var(--ink-dim); border-radius:10px; font-size:10.5px; padding:1px 10px; white-space:nowrap; }
+  .gapbox .gapins{ border-color:#4a3a1c; color:#d8b06a; }
+  .gapbox:not(.compact) .gapins{ display:block; margin:6px auto 0; }
   .block-collapse{ display:block; margin:0 0 6px auto; background:none; border:none; color:var(--ink-dim); font-size:11px; padding:0 2px; }
   .block-row{ display:flex; align-items:center; gap:8px; }
   .block-row input[type=time]{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 6px; font-size:14px; min-width:0; }
@@ -196,8 +209,8 @@
 <div class="savetag" id="savetag">zapisano</div>
 
 <header>
-  <h1>Karta godzin <span class="vertag">v1.1</span></h1>
-  <div class="who">Paweł Fuławka · <span class="buildtag">19.09.2026 07:22</span></div>
+  <h1>Karta godzin <span class="vertag">v1.2</span></h1>
+  <div class="who">Paweł Fuławka · <span class="buildtag">19.09.2026 07:39</span></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
     <div class="label" id="monthLabel">—</div>
@@ -238,7 +251,7 @@
         <div class="chip avgchip" id="condAvgChip" title="Dotknij, aby przełączyć sposób liczenia średniej"><div class="l" id="condAvgLabel">śr./dzień rob. ⇄</div><div class="v" id="condAvg">—</div></div>
       </div>
     </div>
-    <div class="toggle" id="toggleDetail">Podsumowanie miesiąca ▸</div>
+    <div class="toggle" id="toggleDetail">📊 Podsumowanie miesiąca ▸</div>
   </div>
 </header>
 
@@ -263,11 +276,11 @@
       <span>Podsumowanie miesiąca</span>
     </div>
     <div class="detail" id="detailPanel">
-      <div class="detail-row"><label><input type="checkbox" id="chkBiuro" checked> Biuro</label><span class="val" id="sBiuro">0:00</span></div>
-      <div class="detail-row"><label><input type="checkbox" id="chkObiekt" checked> Obiekt</label><span class="val" id="sObiekt">0:00</span></div>
-      <div class="detail-row"><label><input type="checkbox" id="chkWizja" checked> Wizje lokalne</label><span class="val" id="sWizja">0:00</span></div>
-      <div class="detail-row"><label><input type="checkbox" id="chkOrganizacja" checked> Organizacja</label><span class="val" id="sOrganizacja">0:00</span></div>
-      <div class="detail-row"><label>🚗 Dojazdy <span class="hint">(zawsze liczone)</span></label><span class="val" id="sDojazd">0:00</span></div>
+      <div class="detail-row zone"><label><input type="checkbox" id="chkBiuro" checked> Biuro</label><span class="pct" id="pBiuro"></span><span class="val" id="sBiuro">0:00</span><div class="zonebar"><i id="bBiuro" style="background:#4d7ea8"></i></div></div>
+      <div class="detail-row zone"><label><input type="checkbox" id="chkObiekt" checked> Obiekt</label><span class="pct" id="pObiekt"></span><span class="val" id="sObiekt">0:00</span><div class="zonebar"><i id="bObiekt" style="background:#c07a34"></i></div></div>
+      <div class="detail-row zone"><label><input type="checkbox" id="chkWizja" checked> Wizje lokalne</label><span class="pct" id="pWizja"></span><span class="val" id="sWizja">0:00</span><div class="zonebar"><i id="bWizja" style="background:#7a5ca8"></i></div></div>
+      <div class="detail-row zone"><label><input type="checkbox" id="chkOrganizacja" checked> Organizacja</label><span class="pct" id="pOrganizacja"></span><span class="val" id="sOrganizacja">0:00</span><div class="zonebar"><i id="bOrganizacja" style="background:#5a8a5a"></i></div></div>
+      <div class="detail-row zone"><label>🚗 Dojazdy <span class="hint">(zawsze liczone)</span></label><span class="pct" id="pDojazd"></span><span class="val" id="sDojazd">0:00</span><div class="zonebar"><i id="bDojazd" style="background:var(--green)"></i></div></div>
       <div class="detail-row"><label>☕ Przerwy <span class="hint">(nie liczone)</span></label><span class="val" id="sPrzerwa">0:00</span></div>
       <div class="detail-row"><label>Dni robocze (bez weekendów i świąt)</label><span class="val" id="sWorkdays">0</span></div>
       <div class="detail-row"><label>Norma godzin</label><input type="number" id="inpNorma" step="0.5"></div>
@@ -296,7 +309,7 @@ function storageKey(y,m){ return `karta_godzin_v3_${y}_${m}`; }
 function daysInMonth(y,m){ return new Date(y, m, 0).getDate(); }
 
 function emptyDay(){
-  return { dayType:'praca', urlopKomentarz:'', blocks:[{start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'}] };
+  return { dayType:'praca', urlopKomentarz:'', nocna:false, blocks:[{start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'}] };
 }
 
 function migrateOld(oldArr, n){
@@ -304,7 +317,7 @@ function migrateOld(oldArr, n){
   for(let i=0;i<n;i++){
     const o = oldArr[i];
     if(!o){ arr.push(emptyDay()); continue; }
-    if(o.blocks && o.blocks[0] && 'gapAfter' in o.blocks[0]){ arr.push(o); continue; } // already v3
+    if(o.blocks && o.blocks[0] && 'gapAfter' in o.blocks[0]){ arr.push(legacyNightFlag(o)); continue; } // already v3
     // v2 shape: blocks without komentarz/gapAfter, day-level opis
     let blocks = (o.blocks||[{start:'',end:'',kind:'obiekt'}]).map((b,i2)=>({
       start:b.start||'', end:b.end||'', kind:b.kind||'obiekt',
@@ -312,9 +325,20 @@ function migrateOld(oldArr, n){
       gapAfter:'dojazd'
     }));
     if(blocks.length===0) blocks=[{start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'}];
-    arr.push({dayType:o.dayType||'praca', urlopKomentarz:o.urlopKomentarz||'', blocks});
+    arr.push(legacyNightFlag({dayType:o.dayType||'praca', urlopKomentarz:o.urlopKomentarz||'', blocks}));
   }
   return arr;
+}
+
+// Days saved before the "Praca w nocy" switch existed relied on automatic
+// midnight wrapping. Give those days the flag so their totals stay exactly as
+// they were; days without any wrap simply stay undefined until first opened.
+function legacyNightFlag(day){
+  if(day.nocna===undefined && day.dayType!=='urlop' && day.blocks){
+    const eff = computeEffectiveBlocks(day.blocks, true);
+    if(eff.some(w=>w.wrappedStart||w.wrappedEnd)) day.nocna = true;
+  }
+  return day;
 }
 
 // Loads a month from the Google Sheets backend (Apps Script), falling back
@@ -399,24 +423,42 @@ function isWeekend(y,m,d){ const wd = new Date(y,m-1,d).getDay(); return wd===0|
 
 // Unwraps a day's blocks into chronological effective minutes, auto-detecting
 // overnight crossings (end <= start rolls to the next day, cascading).
-function computeEffectiveBlocks(blocks){
-  let cursor = 0;
+// allowWrap = the day's "Praca w nocy" switch. With it on, a time earlier than
+// the previous one means "next day" (21:00–03:00). With it off the same input
+// is treated as a typo: the block gets an error, is not counted, and does not
+// move the cursor — so one wrong digit can no longer add ~20h of "dojazd".
+function computeEffectiveBlocks(blocks, allowWrap){
+  let cursor = 0, prevEnd = '';
   return blocks.map(b=>{
-    if(!b.start || !b.end) return {startEff:null,endEff:null,wrappedStart:false,wrappedEnd:false};
+    const none = {startEff:null,endEff:null,wrappedStart:false,wrappedEnd:false};
+    if(!b.start || !b.end) return none;
     let s = timeToMinutes(b.start);
     let wrappedStart=false;
-    while(s < cursor){ s += 1440; wrappedStart=true; }
+    if(s < cursor){
+      if(!allowWrap) return Object.assign(none, {error:'start', prevEnd});
+      while(s < cursor){ s += 1440; wrappedStart=true; }
+    }
     let e = timeToMinutes(b.end);
     let wrappedEnd=false;
-    while(e <= s){ e += 1440; wrappedEnd=true; }
-    cursor = e;
+    if(e <= s){
+      if(!allowWrap) return Object.assign(none, {error:'end', prevEnd});
+      while(e <= s){ e += 1440; wrappedEnd=true; }
+    }
+    cursor = e; prevEnd = b.end;
     return {startEff:s, endEff:e, wrappedStart, wrappedEnd};
   });
+}
+function blockErrorText(w, b){
+  if(!w || !w.error) return '';
+  const fix = ' Popraw godzinę albo włącz „Praca w nocy”. Ten wpis nie jest liczony.';
+  return w.error==='start'
+    ? `Start ${b.start} jest wcześniej niż koniec poprzedniego wpisu (${w.prevEnd}).${fix}`
+    : `Koniec ${b.end} nie jest później niż start ${b.start}.${fix}`;
 }
 
 function dayStats(d){
   if(d.dayType==='urlop') return {biuro:0,obiekt:0,wizja:0,organizacja:0,dojazd:0,przerwa:0,worked:0};
-  const eff = computeEffectiveBlocks(d.blocks);
+  const eff = computeEffectiveBlocks(d.blocks, !!d.nocna);
   let biuro=0,obiekt=0,wizja=0,organizacja=0,dojazd=0,przerwa=0;
   eff.forEach((b,i)=>{
     if(b.startEff==null) return;
@@ -550,6 +592,12 @@ function updateSummary(){
   document.getElementById('sOrganizacja').textContent = fmtHM(t.organizacja);
   document.getElementById('sDojazd').textContent = fmtHM(t.dojazd);
   document.getElementById('sPrzerwa').textContent = fmtHM(t.przerwa);
+  // share of each zone in all worked time (the five zones add up to 100%)
+  [['Biuro',t.biuro],['Obiekt',t.obiekt],['Wizja',t.wizja],['Organizacja',t.organizacja],['Dojazd',t.dojazd]].forEach(([id,v])=>{
+    const share = t.worked>0 ? v/t.worked*100 : 0;
+    document.getElementById('p'+id).textContent = t.worked>0 ? Math.round(share)+'%' : '';
+    document.getElementById('b'+id).style.width = share.toFixed(1)+'%';
+  });
   document.getElementById('sWorkdays').textContent = workdaysCount(curYear,curMonth);
   document.getElementById('sUrlopH').textContent = `${t.urlopDays} d — ${fmtHM(t.urlopH)}`;
   document.getElementById('sWymagane').textContent = fmtHM(t.wymagane);
@@ -656,7 +704,8 @@ function updateDayBadge(dayNum){
     cardEl.classList.add('urlop');
   } else {
     const mins = dayWorkedMinutes(d);
-    badge.textContent = mins>0 ? fmtHM(mins) : '—';
+    const hasErr = computeEffectiveBlocks(d.blocks, !!d.nocna).some(w=>w.error);
+    badge.textContent = (hasErr?'⚠ ':'') + (mins>0 ? fmtHM(mins) : '—');
     badge.className = 'day-hours' + (mins===0?' zero':'');
     cardEl.classList.remove('urlop');
     const wd = new Date(curYear,curMonth-1,dayNum).getDay();
@@ -674,13 +723,17 @@ function updateDayBadge(dayNum){
 function refreshDayDerived(dayNum){
   const d = monthData[dayNum-1];
   if(d.dayType==='urlop') return;
-  const eff = computeEffectiveBlocks(d.blocks);
+  const eff = computeEffectiveBlocks(d.blocks, !!d.nocna);
+  const canInsert = d.blocks.length < MAX_BLOCKS;
 
   d.blocks.forEach((b,i)=>{
-    const tag = document.getElementById(`wraptag-${dayNum}-${i}`);
-    if(!tag) return;
     const w = eff[i];
-    tag.textContent = (w && (w.wrappedStart || w.wrappedEnd)) ? '🌙 przechodzi na kolejny dzień' : '';
+    const tag = document.getElementById(`wraptag-${dayNum}-${i}`);
+    if(tag) tag.textContent = (w && (w.wrappedStart || w.wrappedEnd)) ? '🌙 przechodzi na kolejny dzień' : '';
+    const err = document.getElementById(`blockerr-${dayNum}-${i}`);
+    if(err) err.textContent = blockErrorText(w, b);
+    const bar = document.querySelector(`#body-${dayNum} .block[data-block="${i}"] .blockbar`);
+    if(bar) bar.classList.toggle('err', !!(w && w.error));
   });
 
   for(let i=0;i<d.blocks.length-1;i++){
@@ -688,7 +741,10 @@ function refreshDayDerived(dayNum){
     if(!wrap) continue;
     const a = eff[i], bnext = eff[i+1];
     if(!a || !bnext || a.endEff==null || bnext.startEff==null || bnext.startEff - a.endEff <= 0){
-      wrap.innerHTML = '';
+      // no countable gap here — just offer inserting an entry at this position
+      wrap.innerHTML = canInsert ? `<div class="insline"><button data-act="insert">＋ wstaw wpis</button></div>` : '';
+      const ins = wrap.querySelector('[data-act="insert"]');
+      if(ins) ins.addEventListener('click', ()=>insertBlockAfter(dayNum, i, false));
       continue;
     }
     const gap = bnext.startEff - a.endEff;
@@ -700,9 +756,12 @@ function refreshDayDerived(dayNum){
         <div class="gaptoggle ${type}" data-day="${dayNum}" data-gap="${i}">
           <div class="knob"></div>
           <button data-val="dojazd" class="${type==='dojazd'?'active':''}">🚗 Dojazd</button>
-          <button data-val="przerwa" class="${type==='przerwa'?'active':''}">☕ Przerwa</button>
+          <button data-val="przerwa" class="${type==='przerwa'?'active':''}">${compact?'☕ Nie licz':'☕ Przerwa (nie licz)'}</button>
         </div>
+        ${canInsert?`<button class="gapins" data-act="gapinsert">＋ wpis</button>`:''}
       </div>`;
+    const gi = wrap.querySelector('[data-act="gapinsert"]');
+    if(gi) gi.addEventListener('click', ()=>insertBlockAfter(dayNum, i, true));
     wrap.querySelectorAll('.gaptoggle button').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         d.blocks[i].gapAfter = btn.dataset.val;
@@ -713,6 +772,24 @@ function refreshDayDerived(dayNum){
       });
     });
   }
+}
+
+// Inserts an entry between block i and i+1. From a gap chip the new entry is a
+// ready Dojazd spanning exactly that gap (same total as the automatic gap, but
+// now editable/commentable); otherwise it is a blank entry starting where the
+// previous one ended — the way to fix a wrong order without deleting anything.
+function insertBlockAfter(dayNum, i, fromGap){
+  const d = monthData[dayNum-1];
+  if(d.blocks.length >= MAX_BLOCKS) return;
+  const prev = d.blocks[i], next = d.blocks[i+1];
+  d.blocks.splice(i+1, 0, {
+    start: prev.end || '',
+    end: fromGap ? (next.start || '') : '',
+    kind: fromGap ? 'dojazd' : 'obiekt',
+    komentarz:'', gapAfter:'dojazd'
+  });
+  if(blockUI.day===dayNum) blockUI.open.splice(i+1, 0, !fromGap);
+  saveMonth(); renderBody(dayNum, true); updateDayBadge(dayNum); updateSummary();
 }
 
 function getWeekDates(date){
@@ -846,18 +923,20 @@ function renderBody(dayNum, keepUI){
     return;
   }
 
+  if(d.nocna===undefined) d.nocna = false; // legacy days were flagged on load
+  const effBar = computeEffectiveBlocks(d.blocks, !!d.nocna);
   if(!keepUI || blockUI.day!==dayNum || blockUI.open.length!==d.blocks.length){
     blockUI.day = dayNum;
-    blockUI.open = d.blocks.map(b=>!blockComplete(b));
+    blockUI.open = d.blocks.map((b,i)=>!blockComplete(b) || !!effBar[i].error);
   }
-  const effBar = computeEffectiveBlocks(d.blocks);
+  html += `<label class="nightrow"><span>🌙 Praca w nocy (po północy)</span><input type="checkbox" data-act="nocna" ${d.nocna?'checked':''}></label>`;
 
   d.blocks.forEach((b, bi) => {
     if(!blockUI.open[bi]){
       const w = effBar[bi];
-      const dur = (w && w.startEff!=null) ? fmtHM(w.endEff - w.startEff) : '';
+      const dur = (w && w.startEff!=null) ? fmtHM(w.endEff - w.startEff) : (w && w.error ? '⚠' : '');
       html += `<div class="block collapsed" data-block="${bi}">
-        <div class="blockbar" data-act="expand">
+        <div class="blockbar${effBar[bi].error?' err':''}" data-act="expand">
           <span class="bb-kind" data-kind="${b.kind}">${KIND_LABEL[b.kind]||KIND_LABEL.obiekt}</span>
           <span class="bb-time">${b.start}–${b.end}</span>
           <span class="bb-dur">${dur}</span>
@@ -869,7 +948,7 @@ function renderBody(dayNum, keepUI){
       return;
     }
     html += `<div class="block" data-block="${bi}">
-      ${blockComplete(b)?'<button class="block-collapse" data-act="collapse">zwiń ▾</button>':''}
+      ${blockComplete(b) && !effBar[bi].error?'<button class="block-collapse" data-act="collapse">zwiń ▾</button>':''}
       <div class="block-kind">
         ${['biuro','obiekt','wizja','organizacja','dojazd'].map(k=>`<button data-kind="${k}" data-act="kind" class="${b.kind===k?'active':''}">${KIND_LABEL[k]}</button>`).join('')}
       </div>
@@ -880,6 +959,7 @@ function renderBody(dayNum, keepUI){
         ${d.blocks.length>1?'<button class="rmblock" data-act="rmblock">✕</button>':''}
       </div>
       <div class="wraptag" id="wraptag-${dayNum}-${bi}"></div>
+      <div class="blockerr" id="blockerr-${dayNum}-${bi}"></div>
       <input type="text" class="block-komentarz" data-field="komentarz" placeholder="Co robiłem w tym przedziale..." value="${escapeAttr(b.komentarz||'')}">
     </div>
     <div class="gapwrap" id="gapwrap-${dayNum}-${bi}"></div>`;
@@ -920,6 +1000,14 @@ function renderBody(dayNum, keepUI){
     });
   });
 
+  const nightChk = body.querySelector('[data-act="nocna"]');
+  if(nightChk){
+    nightChk.addEventListener('change', (e)=>{
+      d.nocna = e.target.checked;
+      saveMonth(); renderBody(dayNum, true); updateDayBadge(dayNum); updateSummary();
+    });
+  }
+
   body.querySelectorAll('[data-act="expand"],[data-act="collapse"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const bi = parseInt(btn.closest('.block').dataset.block);
@@ -943,7 +1031,9 @@ function renderBody(dayNum, keepUI){
     addBtn.addEventListener('click', ()=>{
       // finished blocks fold into bars so the new entry is the only thing open
       blockUI.open = d.blocks.map((b,i)=> blockComplete(b) ? false : blockUI.open[i]!==false);
-      d.blocks.push({start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'});
+      // the next entry starts where the previous one ended
+      const last = d.blocks[d.blocks.length-1];
+      d.blocks.push({start:(last && last.end) || '',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'});
       blockUI.open.push(true);
       saveMonth(); renderBody(dayNum, true); updateDayBadge(dayNum); updateSummary();
     });
@@ -1209,7 +1299,8 @@ document.getElementById('importFile').addEventListener('change', async (e)=>{
         blocks[0].komentarz = opisText;
       }
       if(blocks.length===0) blocks.push({start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'});
-      arr.push({dayType, urlopKomentarz, blocks});
+      const nocna = computeEffectiveBlocks(blocks, true).some(w=>w.wrappedStart||w.wrappedEnd);
+      arr.push({dayType, urlopKomentarz, nocna, blocks});
     }
     monthData = arr;
     ensureMeta();
@@ -1234,7 +1325,7 @@ const XLSX_SUM_FORMULA = (r)=> XLSX_SPAN_COLS.map(([sc,ec])=>`(${ec}${r}-${sc}${
 // Merges dojazd-linked blocks into continuous paid spans; przerwa-linked gaps
 // stay as separate spans (unpaid, matches original 3-block Excel layout).
 function exportSpans(d){
-  const eff = computeEffectiveBlocks(d.blocks);
+  const eff = computeEffectiveBlocks(d.blocks, !!d.nocna);
   const spans = [];
   let cur = null;
   for(let i=0;i<eff.length;i++){
