@@ -125,14 +125,20 @@ logowania.
   niego, dopiero potem powielać. Wymaga ustaleń (kto widzi czyje godziny, osobne
   dane per osoba, ewentualny PIN) i makiety przed kodowaniem.
 - Eksport .xlsx na iPhonie: DZIAŁA od v1.2.2 (potwierdził Szef 19.09.2026, Chrome iOS).
-- BEZPIECZEŃSTWO: backend jest otwarty dla każdego (access ANYONE_ANONYMOUS, brak
-  logowania, GAS_URL jawny w publicznym repo). Plan: logowanie serwisantów (login+PIN
-  sprawdzany w Apps Script, sesja z tokenem, dane per użytkownik) + panel admina.
-  Szef zaakceptował PIN 6-cyfrowy. Wymaganie: uprawnienie widoczności historii per
-  serwisant — tylko bieżący miesiąc / 2 / 3 miesiące / całość, zmieniane przez admina w
-  dowolnej chwili. Egzekwowane na serwerze; dane nie są kasowane (dowód czasu pracy),
-  admin widzi wszystko. Do rozważenia: zatwierdzanie/blokada zamkniętych miesięcy.
-  Wymaga migracji kluczy i makiety przed kodowaniem.
+- KONTA I BEZPIECZEŃSTWO (w toku, etap 1 z 3): backend z logowaniem jest wdrożony (Kod.gs, wersja @6),
+  ale NADAL działa też stary otwarty tryb (`LEGACY_OPEN = true`), bo frontend jeszcze nie ma
+  logowania. Etap 2: frontend v1.3 (ekran logowania login=skrót + PIN 6 cyfr, token sesji 30 dni,
+  przełącznik Karta/Admin, zakładka Admin, Zmień PIN, komunikat o ukrytym miesiącu) — najpierw makieta
+  do akceptacji. Etap 3: `LEGACY_OPEN = false` i redeploy (zamyka otwarty dostęp).
+  Backend: akcje POST {action, token,...}: login, logout, me, get, set, export, changePin oraz
+  admin.list/createUser/setPin/setName/setVisibility/unlock/setActive/get. Konta w zakładce Users
+  (PIN tylko jako HMAC z pepperem z właściwości skryptu; blokada 5 błędów → 5 min, podwajana do 24 h;
+  Piotr/admin odblokowuje), sesje w zakładce Sessions (tylko SHA-256 tokenu). Dane: konto PF (admin,
+  Paweł) ma stare klucze bez prefiksu (zero migracji); pozostali pod `ID::klucz`. Widoczność historii
+  per konto (visibleMonths: 0=całość, 1=bieżący, 2, 3…) egzekwowana na serwerze (odczyt i zapis
+  ukrytego miesiąca → błąd hidden; admin widzi wszystko; dane się nie kasują). Konta: PF (admin),
+  PS = Piotr S (użytkownik testowy; PIN startowy słaby — do zmiany). Testy logiki: atrapa Apps Script
+  (69 sprawdzeń). PIN-ów NIE zapisujemy w repo ani w CLAUDE.md.
 
 ## Więcej kontekstu
 
