@@ -118,6 +118,7 @@ function dispatch_(b) {
     case 'admin.setPin': return adminSetPin_(b);
     case 'admin.setVisibility': return adminSetVisibility_(b);
     case 'admin.unlock': return adminUnlock_(b);
+    case 'admin.setName': return adminSetName_(b);
     case 'admin.setActive': return adminSetActive_(user, b);
     case 'admin.get': return adminGet_(b);
   }
@@ -269,6 +270,15 @@ function adminSetVisibility_(b) {
   const months = validMonths_(b.months);
   if (!u || months === null) return fail_('bad');
   u.visibleMonths = months;
+  saveUser_(u);
+  return { ok: true };
+}
+
+function adminSetName_(b) {
+  const u = findUser_(validId_(b.id));
+  const name = String(b.name || '').trim().slice(0, 60);
+  if (!u || !name) return fail_('bad');
+  u.name = name;
   saveUser_(u);
   return { ok: true };
 }
