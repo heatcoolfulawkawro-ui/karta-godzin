@@ -57,7 +57,11 @@ logowania.
   i `location.href = dataURI` są zawodne (link z data: URI nie robi nic — potwierdzone
   przez Szefa na iPhonie). Od v1.2.1 eksport na iOS idzie przez natywne okno
   udostępniania (`navigator.share` z plikiem → „Zapisz w Plikach"), a gdy go brak —
-  dwuetapowy link blob:. NIE potwierdzone na iPhonie po zmianie.
+  dwuetapowy link blob:. Od v1.2.2 (Chrome iOS nie ma udostępniania plików i psuje blob:) eksport idzie przez
+  Apps Script: appka POSTuje plik (action:export, base64) → `exportXlsx_` w Kod.gs zapisuje go w folderze
+  Dysku „KG-eksport-tmp" (dostęp: każdy z linkiem, sprzątanie plików starszych niż 15 min) i zwraca
+  link uc?export=download. Wymagało jednorazowej autoryzacji Dysku (funkcja `authorizeDrive`).
+  Nazwa pliku: M_RR_SKRÓT.xlsx (stała `USER_INITIALS`, dziś PF; po logowaniu z konta serwisanta).
 - W polach czasu/komentarza nie przebudowuj DOM-u przy wpisywaniu (gubi
   fokus na telefonie) — odświeżaj tylko wyliczane etykiety.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
@@ -120,11 +124,7 @@ logowania.
   dziś appka obsługuje jedną osobę. Warunek Szefa: najpierw dopracować wygląd u
   niego, dopiero potem powielać. Wymaga ustaleń (kto widzi czyje godziny, osobne
   dane per osoba, ewentualny PIN) i makiety przed kodowaniem.
-- Eksport .xlsx na iPhonie: v1.2.1 NIE działa w Chrome na iOS (zapisuje plik tekstowy bez
-  nazwy — Chrome iOS nie ma udostępniania plików ani nazwy dla blob:). Nazwa docelowa ma
-  być M_RR_SKRÓT.xlsx (np. 9_26_PF). Zaakceptowane przez Szefa: eksport przez Apps Script
-  (plik tymczasowo na Dysku + zwykły link). Czeka na zgodę na publiczne udostępnianie
-  tymczasowego pliku i na jednorazowe przyznanie uprawnienia do Dysku.
+- Eksport .xlsx na iPhonie: DZIAŁA od v1.2.2 (potwierdził Szef 19.09.2026, Chrome iOS).
 - BEZPIECZEŃSTWO: backend jest otwarty dla każdego (access ANYONE_ANONYMOUS, brak
   logowania, GAS_URL jawny w publicznym repo). Plan: logowanie serwisantów (login+PIN
   sprawdzany w Apps Script, sesja z tokenem, dane per użytkownik) + panel admina.
