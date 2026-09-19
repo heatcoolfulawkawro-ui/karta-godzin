@@ -104,6 +104,30 @@ logowania.
 
 ## Otwarte tematy
 
-- Panel per miesiąc/rok i osobno per serwisant — dziś appka obsługuje jedną
-  osobę. Wymaga ustaleń (kto widzi czyje godziny, osobne dane per osoba,
-  ewentualny PIN) i makiety przed kodowaniem.
+- v1.1 i v1.2 wdrożone 19.09.2026 — czekają na uwagi Szefa z używania w terenie
+  (zwijane bloki, wstawianie wpisów, walidacja godzin + „Praca w nocy", średnia
+  dzienna, podsumowanie z %).
+- Strona „Podsumowanie miesiąca" ma być dalej rozbudowywana (życzenie: wykresy,
+  „gdzie mogę coś urwać"); dziś ma % i paski per strefa.
+- Górny nagłówek (zakładki + widoki + panel) zajmuje na telefonie dużo ekranu —
+  propozycja: zwijanie przy przewijaniu. Nieustalone, wymaga makiety.
+- Średnia dzienna jest w formacie g:mm; Szef w rozmowie użył zapisu dziesiętnego
+  (9,67) — zapytać, czy dopisać obok.
+- Statystyki per rok (agregacja miesięcy), a potem panel osobno per serwisant —
+  dziś appka obsługuje jedną osobę. Warunek Szefa: najpierw dopracować wygląd u
+  niego, dopiero potem powielać. Wymaga ustaleń (kto widzi czyje godziny, osobne
+  dane per osoba, ewentualny PIN) i makiety przed kodowaniem.
+- Do sprawdzenia: nie ma potwierdzenia, że dwuetapowy eksport .xlsx działa na
+  iPhonie. Plan B: eksport generowany po stronie Apps Script (link do pobrania).
+
+## Więcej kontekstu
+
+- Historia projektu, reguły liczenia czasu w firmie, format starego Excela,
+  odrzucone podejścia i preferencje Szefa co do wyglądu:
+  `../_wiedza-z-czatow/04-godziny-projekt-pf.md` (wyciąg ze starego czatu
+  claude.ai, 26.08–18.09.2026). Przeczytaj przed większą zmianą.
+- Żelazna zasada Szefa: pracujemy na poprzedniej wersji i ulepszamy tylko dany
+  element — nie przebudowujemy całości i nie ruszamy tego, o co nie prosił.
+- Po każdym wdrożeniu napisz wprost, co zostało wypchnięte i gdzie, co
+  sprawdzone, a czego nie (np. „na iPhonie nie testowałem").
+- Mapa wszystkich projektów i zasady porządku: `../CLAUDE.md`.
