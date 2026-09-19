@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>Karta godzin — Paweł Fuławka</title>
+<title>Karta godzin</title>
 <script>
 // Skróty na ekranie głównym telefonu potrafią pokazywać zbuforowaną,
 // starą wersję strony. Ten kod po cichu sprawdza w tle prawdziwą
@@ -202,15 +202,100 @@
 
   .savetag{ position:fixed; top:8px; right:12px; font-size:10.5px; color:var(--ink-dim); opacity:0; transition:opacity .3s; z-index:10;}
   .savetag.show{ opacity:1; }
+
+  /* ===== v1.3: logowanie, menu konta, panel admina ===== */
+  .overlay{ display:none; position:fixed; inset:0; z-index:100; background:var(--bg); overflow:auto; padding:24px 20px; }
+  .lg-box{ max-width:340px; margin:7vh auto 0; }
+  .lg-title{ text-align:center; font-size:22px; font-weight:700; }
+  .lg-sub{ text-align:center; color:var(--ink-dim); font-size:12px; margin:2px 0 22px; }
+  .lg-box label{ display:block; color:var(--ink-dim); font-size:12px; margin:12px 0 4px; }
+  .lg-box input{ width:100%; height:48px; font-size:16px; padding:0 12px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; }
+  .lg-err{ color:var(--red); font-size:13px; min-height:20px; margin:10px 0 6px; }
+  .lg-btn{ width:100%; height:48px; border:none; border-radius:10px; background:var(--amber); color:#20140a; font-size:16px; font-weight:700; }
+  .lg-btn.ghost{ background:var(--panel2); color:var(--ink); border:1px solid var(--line); margin-top:8px; font-weight:400; }
+  .lg-btn:disabled{ opacity:.6; }
+  .lg-foot{ color:var(--ink-dim); font-size:12px; text-align:center; margin-top:14px; line-height:1.5; }
+  .userchip{ position:absolute; top:10px; right:12px; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:5px 10px; font-size:12px; }
+  .usermenu{ display:none; position:absolute; top:42px; right:12px; z-index:20; background:var(--panel); border:1px solid var(--line); border-radius:10px; min-width:150px; overflow:hidden; box-shadow:0 6px 18px rgba(0,0,0,.4); }
+  .usermenu.open{ display:block; }
+  .usermenu button{ display:block; width:100%; text-align:left; background:none; border:none; color:var(--ink); padding:12px 14px; font-size:14px; border-bottom:1px solid var(--line); }
+  .usermenu button:last-child{ border-bottom:none; }
+  .rolesw{ display:flex; gap:6px; margin:0 0 8px; }
+  .rolesw button{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:7px 4px; border-radius:8px; font-size:12.5px; font-weight:600; }
+  .rolesw button.active{ background:var(--amber); color:#20140a; border-color:var(--amber); }
+  #adminView{ display:none; padding:8px 10px 24px; }
+  body.adminmode #adminView{ display:block; }
+  body.adminmode .monthbar, body.adminmode header .tabs, body.adminmode .viewmode-switch, body.adminmode .icontoolbar,
+  body.adminmode #viewDays, body.adminmode #days, body.adminmode #viewUrlopy, body.adminmode #viewUrlopRok{ display:none !important; }
+  .hiddenbox{ border:1px dashed var(--line); border-radius:10px; padding:26px 12px; text-align:center; color:var(--ink-dim); margin:12px 10px 0; }
+  .hiddenbox.urlopbox{ border-style:solid; background:var(--panel); padding:12px; text-align:left; }
+  .hb-ico{ font-size:26px; } .hb-t{ color:var(--ink); font-size:15px; margin-top:6px; } .hb-s{ font-size:12px; margin-top:4px; }
+  .hb-row{ display:flex; justify-content:space-between; align-items:center; color:var(--ink); } .hb-row b{ color:var(--blue); }
+  .ad-head{ display:flex; justify-content:space-between; align-items:center; margin:6px 0; }
+  .ad-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; margin:10px 0; }
+  .ad-card.hide{ display:none; }
+  .ad-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .ad-row2{ display:flex; gap:8px; align-items:flex-end; margin-top:6px; }
+  .ad-row2 > *{ flex:1; min-width:0; } .ad-row2.wrap{ flex-wrap:wrap; }
+  .ad-row2 > .ad-btn{ flex:0 0 auto; }
+  .ad-lab{ color:var(--ink-dim); font-size:12px; margin:12px 0 4px; }
+  .ad-dim{ color:var(--ink-dim); font-size:12px; line-height:1.45; }
+  .ad-pill{ font-size:11px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--ink-dim); white-space:nowrap; }
+  .ad-pill.ok{ color:var(--green); border-color:var(--green); } .ad-pill.bad{ color:var(--red); border-color:var(--red); }
+  .ad-in{ width:100%; height:42px; font-size:16px; padding:0 10px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; }
+  .ad-btn{ position:relative; display:inline-block; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13px; text-decoration:none; text-align:center; overflow:hidden; }
+  .ad-btn.primary{ background:var(--amber); color:#20140a; border-color:var(--amber); font-weight:700; }
+  .ad-btn.danger{ color:var(--red); border-color:#5a3733; }
+  .ad-btn input[type=file]{ position:absolute; inset:0; opacity:0; width:100%; height:100%; }
+  .ad-chk{ display:flex; align-items:center; gap:10px; margin:8px 0; font-size:14px; }
+  .ad-chk input{ width:18px; height:18px; accent-color:var(--amber); }
+  .ad-pinline{ font-size:14px; }
+  .ad-pinshow{ font-family:Consolas,monospace; font-size:17px; letter-spacing:2px; color:var(--amber); font-weight:700; }
+  .ad-toast{ min-height:18px; margin-top:8px; font-size:13px; color:var(--green); } .ad-toast.err{ color:var(--red); }
+  .ad-note{ color:var(--ink-dim); text-align:center; padding:24px 0; font-size:14px; }
+  .ad-off{ margin:14px 0; } .ad-off summary{ color:var(--ink-dim); font-size:13px; padding:6px 0; }
+  #adBackupLink{ margin-top:8px; }
 </style>
 </head>
 <body>
 
 <div class="savetag" id="savetag">zapisano</div>
 
+<div class="overlay" id="loginScreen">
+  <form class="lg-box" id="lgForm" autocomplete="on">
+    <div class="lg-title">Karta godzin</div>
+    <div class="lg-sub">RA-STER</div>
+    <label for="lgUser">Login (skrót)</label>
+    <input id="lgUser" name="username" autocomplete="username" autocapitalize="characters" maxlength="6" placeholder="np. PF">
+    <label for="lgPin">PIN (6 cyfr)</label>
+    <input id="lgPin" name="password" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" placeholder="••••••">
+    <div class="lg-err" id="lgErr"></div>
+    <button class="lg-btn" id="lgBtn" type="submit">Zaloguj</button>
+    <div class="lg-foot">Zostajesz zalogowany na tym telefonie przez 30 dni.<br>5 błędnych PIN-ów blokuje konto na kilka minut.</div>
+  </form>
+</div>
+
+<div class="overlay" id="pinModal">
+  <form class="lg-box" id="pmForm" autocomplete="off">
+    <div class="lg-title" style="font-size:18px">Zmiana PIN-u</div>
+    <label for="pmOld">Obecny PIN</label>
+    <input id="pmOld" type="password" inputmode="numeric" maxlength="6" placeholder="••••••">
+    <label for="pmNew">Nowy PIN (6 cyfr)</label>
+    <input id="pmNew" type="password" inputmode="numeric" maxlength="6" placeholder="••••••">
+    <label for="pmNew2">Powtórz nowy PIN</label>
+    <input id="pmNew2" type="password" inputmode="numeric" maxlength="6" placeholder="••••••">
+    <div class="lg-err" id="pmErr"></div>
+    <button class="lg-btn" type="submit">Zapisz PIN</button>
+    <button class="lg-btn ghost" type="button" id="pmCancel">Anuluj</button>
+  </form>
+</div>
+
 <header>
-  <h1>Karta godzin <span class="vertag">v1.2.2</span></h1>
-  <div class="who">Paweł Fuławka · <span class="buildtag">19.09.2026 14:20</span></div>
+  <button class="userchip" id="userChip" style="display:none">—</button>
+  <div class="usermenu" id="userMenu"><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
+  <h1>Karta godzin <span class="vertag">v1.3</span></h1>
+  <div class="who"><span id="whoName">—</span> · <span class="buildtag">19.09.2026 15:58</span></div>
+  <div class="rolesw" id="roleSw" style="display:none"><button id="swKarta" class="active">Karta</button><button id="swAdmin">Admin</button></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
     <div class="label" id="monthLabel">—</div>
@@ -256,6 +341,7 @@
 </header>
 
 <main id="days"></main>
+<div id="adminView"></div>
 <div id="viewUrlopy" class="urlop-list" style="display:none; padding:0 10px;"></div>
 
 <div id="viewUrlopRok" class="urlop-rok" style="display:none;">
@@ -345,34 +431,71 @@ function legacyNightFlag(day){
 // to the browser's local storage cache if the network call fails.
 const GAS_URL = 'https://script.google.com/macros/s/AKfycby09rSaJwoPPl6KeFn80xCOTiOzYM4EZyKy5XuJ0pBA28-x051wB9HXg_osSqUrjoHA/exec';
 
+// ===== Logowanie (v1.3): sesja z tokenem, każde wywołanie serwera idzie przez api() =====
+const AUTH_KEY = 'kg_auth_v1';
+let auth = null;
+try{
+  auth = JSON.parse(localStorage.getItem(AUTH_KEY));
+  if(auth && auth.expires && auth.expires < Date.now()) auth = null;
+}catch(e){ auth = null; }
+function saveAuth(a){
+  auth = a;
+  try{ if(a) localStorage.setItem(AUTH_KEY, JSON.stringify(a)); else localStorage.removeItem(AUTH_KEY); }catch(e){}
+}
+function userId(){ return auth && auth.user ? auth.user.id : ''; }
+function isAdmin(){ return !!(auth && auth.user && auth.user.role === 'admin'); }
+// Lokalny bufor jest osobny per konto; konto PF zostaje pod starymi kluczami (bez migracji).
+function lsKey(k){ const id = userId(); return (!id || id === 'PF') ? k : id + '::' + k; }
+// POST z Content-Type text/plain (bez preflightu CORS). Zwraca obiekt {ok, ...} z serwera;
+// błąd sieci rzuca wyjątek (wołający wraca wtedy do lokalnej kopii).
+async function api(action, payload){
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify(Object.assign({action: action, token: auth ? auth.token : undefined}, payload || {}))
+  });
+  const out = await res.json();
+  if(out && out.error === 'auth' && action !== 'login'){
+    saveAuth(null);
+    showLogin('Sesja wygasła. Zaloguj się ponownie.');
+  }
+  return out;
+}
+let monthHidden = false;      // miesiąc ukryty przez administratora (serwer odmówił odczytu)
+let yearUrlopCounts = new Array(12).fill(0);
+function blankMonth(n){ const arr = []; for(let d=1; d<=n; d++) arr.push(emptyDay()); return arr; }
+
 async function loadMonth(y,m){
   const n = daysInMonth(y,m);
   const key = storageKey(y,m);
+  monthHidden = false;
   try{
-    const res = await fetch(`${GAS_URL}?key=${key}`);
-    if(res.ok){
-      const text = await res.text();
-      if(text && text.trim()){
-        localStorage.setItem(key, text);
-        return migrateOld(JSON.parse(text), n);
-      }
+    const out = await api('get', {key: key});
+    if(out && out.ok && out.value && out.value.trim()){
+      try{ localStorage.setItem(lsKey(key), out.value); }catch(e){}
+      return migrateOld(JSON.parse(out.value), n);
     }
+    if(out && out.error === 'hidden'){
+      monthHidden = true;
+      try{ localStorage.removeItem(lsKey(key)); }catch(e){}   // ukryty miesiąc nie zostaje w telefonie
+      return blankMonth(n);
+    }
+    if(out && out.error === 'auth') return blankMonth(n);
   }catch(e){ console.warn('brak połączenia z Arkuszem, używam lokalnej kopii:', e); }
-  const raw = localStorage.getItem(key);
+  const raw = localStorage.getItem(lsKey(key));
   if(raw){
     try{ return migrateOld(JSON.parse(raw), n); }catch(e){}
   }
-  const arr = [];
-  for(let d=1; d<=n; d++) arr.push(emptyDay());
-  return arr;
+  return blankMonth(n);
 }
 
 let monthData = [];
 
 function saveMonth(){
+  if(monthHidden) return;
   const key = storageKey(curYear,curMonth);
   const json = JSON.stringify(monthData);
-  localStorage.setItem(key, json);
+  localStorage.setItem(lsKey(key), json);
   cloudMirror(key, json);
   const tag = document.getElementById('savetag');
   tag.textContent = 'zapisywanie...';
@@ -392,8 +515,8 @@ function setStatusDot(ok){
 // exist, just to confirm the endpoint responds.
 async function checkConnection(){
   try{
-    const res = await fetch(`${GAS_URL}?key=__ping__`);
-    setStatusDot(res.ok);
+    const out = await api('me');
+    setStatusDot(!!(out && out.ok));
   }catch(e){
     setStatusDot(false);
   }
@@ -403,13 +526,16 @@ document.getElementById('statusDot').addEventListener('click', checkConnection);
 async function cloudMirror(key, json){
   const tag = document.getElementById('savetag');
   try{
-    await fetch(GAS_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
-      body: JSON.stringify({key, value: json})
-    });
-    tag.textContent = 'zapisano w Arkuszu';
-    setStatusDot(true);
+    const out = await api('set', {key: key, value: json});
+    if(out && out.ok){
+      tag.textContent = 'zapisano w Arkuszu';
+      setStatusDot(true);
+    } else if(out && out.error === 'hidden'){
+      tag.textContent = 'miesiąc niedostępny — nie zapisano';
+    } else {
+      tag.textContent = 'zapisano lokalnie (nie zsynchronizowano)';
+      setStatusDot(false);
+    }
   }catch(e){
     tag.textContent = 'zapisano lokalnie (offline)';
     setStatusDot(false);
@@ -541,10 +667,10 @@ function workdaysCount(y,m){
 
 function loadSettings(){
   const def = {biuro:true,obiekt:true,wizja:true,organizacja:true,avgMode:'norma'};
-  try{ return Object.assign(def, JSON.parse(localStorage.getItem('karta_godzin_ustawienia')) || {}); }
+  try{ return Object.assign(def, JSON.parse(localStorage.getItem(lsKey('karta_godzin_ustawienia'))) || {}); }
   catch(e){ return def; }
 }
-function saveSettings(s){ localStorage.setItem('karta_godzin_ustawienia', JSON.stringify(s)); }
+function saveSettings(s){ localStorage.setItem(lsKey('karta_godzin_ustawienia'), JSON.stringify(s)); }
 let settings = loadSettings();
 
 function monthNormaDefault(){ return workdaysCount(curYear,curMonth) * 8 * 60; }
@@ -670,24 +796,15 @@ function bumpYearlyUrlop(wasUrlop, isUrlopNow){
 // Used for page load / month navigation / import / clear — not for single
 // day toggles (see bumpYearlyUrlop above, which avoids a race with the save).
 async function refreshYearlyUrlop(){
-  const year = curYear;
-  const keys = [];
-  for(let m=1;m<=12;m++) keys.push(storageKey(year,m));
   try{
-    const texts = await Promise.all(keys.map(k=>
-      fetch(`${GAS_URL}?key=${k}`).then(r=>r.ok?r.text():'').catch(()=>'')
-    ));
-    let total = 0;
-    texts.forEach(text=>{
-      if(!text || !text.trim()) return;
-      try{
-        const arr = migrateOld(JSON.parse(text), 31);
-        arr.forEach(d=>{ if(d && d.dayType==='urlop') total++; });
-      }catch(e){}
-    });
-    yearlyUrlopUsed = total;
+    const out = await api('urlopYear', {year: curYear});
+    if(out && out.ok){
+      yearUrlopCounts = out.counts;
+      yearlyUrlopUsed = out.counts.reduce((a,b)=>a+b, 0);
+    }
   }catch(e){ console.warn('nie udało się policzyć urlopu rocznego:', e); }
   updateCondensedPanel();
+  if(monthHidden) render();
 }
 
 function updateDayBadge(dayNum){
@@ -870,6 +987,8 @@ function appendCrossRow(container, dateObj){
 function render(){
   updateMonthLabel();
   const container = document.getElementById('days');
+  document.getElementById('viewDays').style.display = (currentTab==='days' && !monthHidden) ? '' : 'none';
+  if(monthHidden){ container.innerHTML = hiddenBoxHtml(); return; }
   container.innerHTML = '';
   const n = daysInMonth(curYear,curMonth);
 
@@ -1070,6 +1189,7 @@ function escapeAttr(s){ return escapeHtml(s); }
 
 function renderUrlopyTab(){
   const box = document.getElementById('viewUrlopy');
+  if(monthHidden){ box.innerHTML = hiddenBoxHtml(); return; }
   const n = daysInMonth(curYear,curMonth);
   const items = [];
   for(let dayNum=1; dayNum<=n; dayNum++){
@@ -1094,7 +1214,7 @@ function switchTab(tab){
   document.getElementById('tabDays').classList.toggle('active', tab==='days');
   document.getElementById('tabUrlopy').classList.toggle('active', tab==='urlopy');
   document.getElementById('tabUrlopRok').classList.toggle('active', tab==='urlopRok');
-  document.getElementById('viewDays').style.display = tab==='days' ? '' : 'none';
+  document.getElementById('viewDays').style.display = (tab==='days' && !monthHidden) ? '' : 'none';
   document.getElementById('days').style.display = tab==='days' ? '' : 'none';
   document.getElementById('viewUrlopy').style.display = tab==='urlopy' ? '' : 'none';
   document.getElementById('viewUrlopRok').style.display = tab==='urlopRok' ? '' : 'none';
@@ -1107,26 +1227,15 @@ document.getElementById('tabUrlopRok').addEventListener('click', ()=>switchTab('
 // Pulls all 12 months of the given year from the Sheet and returns both the
 // flat list of urlop days (for page 1) and per-month counts (for the chart).
 async function fetchYearUrlopDetails(year){
-  const keys = [];
-  for(let m=1;m<=12;m++) keys.push(storageKey(year,m));
-  const texts = await Promise.all(keys.map(k=>
-    fetch(`${GAS_URL}?key=${k}`).then(r=>r.ok?r.text():'').catch(()=>'')
-  ));
   const perMonth = new Array(12).fill(0);
   const items = [];
-  texts.forEach((text, idx)=>{
-    const m = idx+1;
-    if(!text || !text.trim()) return;
-    try{
-      const arr = migrateOld(JSON.parse(text), daysInMonth(year,m));
-      arr.forEach((d,i)=>{
-        if(d && d.dayType==='urlop'){
-          perMonth[idx]++;
-          items.push({month:m, day:i+1, komentarz:d.urlopKomentarz||''});
-        }
-      });
-    }catch(e){}
-  });
+  try{
+    const out = await api('urlopYear', {year: year});
+    if(out && out.ok){
+      out.counts.forEach((c,i)=>{ perMonth[i] = c; });
+      out.items.forEach(it=>items.push(it));
+    }
+  }catch(e){}
   return {perMonth, items};
 }
 
@@ -1137,7 +1246,7 @@ async function renderUrlopRokTab(){
   chartPage.innerHTML = '';
 
   const {perMonth, items} = await fetchYearUrlopDetails(curYear);
-  const total = items.length;
+  const total = perMonth.reduce((a,b)=>a+b, 0);
 
   // Page 1 — full-year list, grouped by month.
   if(total===0){
@@ -1146,8 +1255,9 @@ async function renderUrlopRokTab(){
     let html = `<div class="urlop-rok-total"><b>${total}</b> / ${URLOP_LIMIT} dni urlopu wykorzystane w ${curYear}</div>`;
     for(let m=1; m<=12; m++){
       const monthItems = items.filter(it=>it.month===m);
-      if(monthItems.length===0) continue;
-      html += `<div class="urlop-rok-month-head">${MONTH_NAMES[m-1]} — ${monthItems.length} d.</div>`;
+      if(perMonth[m-1]===0) continue;
+      html += `<div class="urlop-rok-month-head">${MONTH_NAMES[m-1]} — ${perMonth[m-1]} d.</div>`;
+      if(monthItems.length===0) html += `<div class="urlop-item"><div class="ui-comment">Szczegóły niedostępne (miesiąc ukryty przez administratora)</div></div>`;
       monthItems.forEach(it=>{
         const wd = new Date(curYear,m-1,it.day).getDay();
         html += `<div class="urlop-item">
@@ -1264,18 +1374,9 @@ function excelFracToTime(v){
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 }
 
-document.getElementById('importFile').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  if(!confirm(`Zaimportować dane do ${MONTH_NAMES[curMonth-1]} ${curYear}? To nadpisze to, co masz teraz wpisane w tym miesiącu w aplikacji.`)){
-    e.target.value=''; return;
-  }
-  try{
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:'array'});
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const n = daysInMonth(curYear,curMonth);
-    const arr = [];
+function xlsxToMonthArray(sheet, y, m){
+  const n = daysInMonth(y, m);
+  const arr = [];
     for(let i=0;i<n;i++){
       const r = 3+i;
       const get = (col)=> sheet[`${col}${r}`];
@@ -1302,6 +1403,21 @@ document.getElementById('importFile').addEventListener('change', async (e)=>{
       const nocna = computeEffectiveBlocks(blocks, true).some(w=>w.wrappedStart||w.wrappedEnd);
       arr.push({dayType, urlopKomentarz, nocna, blocks});
     }
+  return arr;
+}
+
+document.getElementById('importFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  if(monthHidden){ alert('Ten miesiąc jest niedostępny.'); e.target.value=''; return; }
+  if(!confirm(`Zaimportować dane do ${MONTH_NAMES[curMonth-1]} ${curYear}? To nadpisze to, co masz teraz wpisane w tym miesiącu w aplikacji.`)){
+    e.target.value=''; return;
+  }
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const arr = xlsxToMonthArray(sheet, curYear, curMonth);
     monthData = arr;
     ensureMeta();
     saveMonth();
@@ -1351,12 +1467,12 @@ function exportSpans(d){
   return spans.slice(0, XLSX_SPAN_COLS.length);
 }
 
-function buildWorkbook(){
+function buildWorkbook(forUser){
   const ws = {}; const merges = [];
   const setCell = (addr, value, opts) => { ws[addr] = Object.assign({v:value}, opts||{}); };
 
   setCell('A1','Rok',{t:'s'}); setCell('D1','Miesiąc',{t:'s'});
-  setCell('J1','Imię i Nazwisko',{t:'s'}); setCell('L1','PAWEŁ FUŁAWKA',{t:'s'});
+  setCell('J1','Imię i Nazwisko',{t:'s'}); setCell('L1',(forUser ? forUser.name : (auth && auth.user ? auth.user.name : '')).toUpperCase(),{t:'s'});
   setCell('O1','Stanowisko',{t:'s'}); setCell('R1','Wymiar czasu pracy',{t:'s'});
   merges.push('B1:C1','H1:I1','J1:K1','L1:N1','P1:Q1','R1:S1');
 
@@ -1404,24 +1520,16 @@ function buildWorkbook(){
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Arkusz1');
   const yy = String(curYear).slice(-2);
-  const filename = `${curMonth}_${yy}_${USER_INITIALS}.xlsx`;
+  const filename = `${curMonth}_${yy}_${forUser ? forUser.id : userId()}.xlsx`;
   return {wb, filename};
 }
 
-// Skrót imienny do nazwy pliku (M_RR_SKRÓT.xlsx). Po wprowadzeniu logowania
-// będzie brany z konta serwisanta.
-const USER_INITIALS = 'PF';
-
 // Eksport przez Apps Script: plik ląduje tymczasowo na Dysku pod właściwą nazwą,
 // a appka dostaje zwykły link do pobrania (działa też w Chrome na iOS).
-async function uploadExport(wb, filename){
+async function uploadExport(wb, filename, forId){
   const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
-  const res = await fetch(GAS_URL, {
-    method: 'POST',
-    headers: {'Content-Type': 'text/plain;charset=utf-8'},
-    body: JSON.stringify({action: 'export', name: filename, b64})
-  });
-  const out = await res.json();
+  const out = await api('export', {name: filename, b64: b64, forId: forId});
+  if(out && out.error === 'forbidden') throw new Error('brak uprawnienia do eksportu');
   if(!out || !out.ok || !out.url) throw new Error((out && out.error) || 'brak linku');
   return out.url;
 }
@@ -1478,7 +1586,8 @@ document.getElementById('btnExport').addEventListener('click', async function(e)
     try{
       this.href = await uploadExport(wb, filename);
       this.removeAttribute('download');
-    }catch(_){
+    }catch(uerr){
+      if(/uprawnienia/.test(String(uerr && uerr.message))) throw uerr;
       this.href = URL.createObjectURL(new Blob([bytes], {type: mime}));
       this.setAttribute('download', filename);
     }
@@ -1488,13 +1597,286 @@ document.getElementById('btnExport').addEventListener('click', async function(e)
   }catch(err){ tag.textContent = 'xlsx'; alert('Eksport się nie udał: ' + err.message); }
 });
 
-(async function init(){
+// ===== Ekran logowania, menu konta, panel administratora (v1.3) =====
+const $id = (i)=>document.getElementById(i);
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+function hiddenBoxHtml(){
+  const c = yearUrlopCounts[curMonth-1] || 0;
+  return `<div class="hiddenbox"><div class="hb-ico">🔒</div><div class="hb-t">Ten miesiąc jest niedostępny</div><div class="hb-s">Dostęp do starszej historii ustawia administrator.</div></div>
+    <div class="hiddenbox urlopbox"><div class="hb-row"><span>Urlop w tym miesiącu</span><b>${c} ${c===1?'dzień':'dni'}</b></div><div class="hb-s">Wliczone do rocznego licznika urlopu. Godzin i opisów nie widać.</div></div>`;
+}
+
+// ---------- logowanie ----------
+function showLogin(msg){
+  $id('loginScreen').style.display = 'block';
+  $id('lgErr').textContent = msg || '';
+  $id('lgPin').value = '';
+  try{ if(!$id('lgUser').value) $id('lgUser').value = localStorage.getItem('kg_last_user') || ''; }catch(e){}
+  setTimeout(()=>{ try{ ($id('lgUser').value ? $id('lgPin') : $id('lgUser')).focus(); }catch(e){} }, 60);
+}
+function hideLogin(){ $id('loginScreen').style.display = 'none'; }
+
+$id('lgForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const u = $id('lgUser').value.trim();
+  const pin = $id('lgPin').value.trim();
+  if(!u || !/^\d{6}$/.test(pin)){ $id('lgErr').textContent = 'Wpisz login i PIN z 6 cyfr.'; return; }
+  const btn = $id('lgBtn');
+  btn.disabled = true; btn.textContent = 'Loguję…';
+  try{
+    const out = await api('login', {user: u, pin: pin});
+    if(out && out.ok){
+      saveAuth({token: out.token, user: out.user, expires: out.expires});
+      try{ localStorage.setItem('kg_last_user', out.user.id); }catch(_){}
+      hideLogin();
+      await startApp();
+    } else if(out && out.error === 'locked'){
+      const min = Math.max(1, Math.ceil((out.retryMs || 0) / 60000));
+      $id('lgErr').textContent = `Konto zablokowane. Spróbuj za ok. ${min} min albo poproś administratora o odblokowanie.`;
+    } else {
+      $id('lgErr').textContent = 'Zły login lub PIN.';
+    }
+  }catch(err){
+    $id('lgErr').textContent = 'Brak połączenia z serwerem. Spróbuj ponownie.';
+  }
+  btn.disabled = false; btn.textContent = 'Zaloguj';
+});
+
+// ---------- menu konta ----------
+function applyUserUI(){
+  const u = auth && auth.user;
+  $id('whoName').textContent = u ? u.name : '—';
+  $id('userChip').style.display = u ? '' : 'none';
+  if(u) $id('userChip').textContent = u.id + ' ▾';
+  $id('roleSw').style.display = isAdmin() ? '' : 'none';
+  $id('btnImport').style.display = (u && u.canImport) ? '' : 'none';
+  $id('btnExport').style.display = (u && u.canExport) ? '' : 'none';
+}
+$id('userChip').addEventListener('click', (e)=>{ e.stopPropagation(); $id('userMenu').classList.toggle('open'); });
+document.addEventListener('click', ()=>$id('userMenu').classList.remove('open'));
+$id('mnLogout').addEventListener('click', async ()=>{
+  try{ await api('logout'); }catch(e){}
+  saveAuth(null);
+  location.reload();
+});
+$id('mnPin').addEventListener('click', ()=>{
+  $id('pmErr').textContent = '';
+  ['pmOld','pmNew','pmNew2'].forEach(i=>{ $id(i).value = ''; });
+  $id('pinModal').style.display = 'block';
+});
+$id('pmCancel').addEventListener('click', ()=>{ $id('pinModal').style.display = 'none'; });
+$id('pmForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  $id('pmErr').textContent = '';
+  const o = $id('pmOld').value.trim(), n1 = $id('pmNew').value.trim(), n2 = $id('pmNew2').value.trim();
+  if(!/^\d{6}$/.test(o) || !/^\d{6}$/.test(n1)){ $id('pmErr').textContent = 'PIN to dokładnie 6 cyfr.'; return; }
+  if(n1 !== n2){ $id('pmErr').textContent = 'Nowy PIN i powtórzenie się różnią.'; return; }
+  if(n1 === o){ $id('pmErr').textContent = 'Nowy PIN musi być inny niż obecny.'; return; }
+  try{
+    const out = await api('changePin', {oldPin: o, newPin: n1});
+    if(!out || !out.ok){ $id('pmErr').textContent = 'Obecny PIN jest nieprawidłowy.'; return; }
+    // Serwer po zmianie PIN-u kończy wszystkie sesje — logujemy się od razu nowym PIN-em.
+    const lg = await api('login', {user: userId(), pin: n1});
+    if(lg && lg.ok) saveAuth({token: lg.token, user: lg.user, expires: lg.expires});
+    $id('pinModal').style.display = 'none';
+    alert('PIN zmieniony.');
+  }catch(err){ $id('pmErr').textContent = 'Brak połączenia z serwerem.'; }
+});
+
+// ---------- przełącznik Karta / Admin ----------
+let appMode = 'karta';
+function setMode(m){
+  appMode = m;
+  document.body.classList.toggle('adminmode', m === 'admin');
+  $id('swKarta').classList.toggle('active', m === 'karta');
+  $id('swAdmin').classList.toggle('active', m === 'admin');
+  if(m === 'admin') renderAdmin();
+}
+$id('swKarta').addEventListener('click', ()=>setMode('karta'));
+$id('swAdmin').addEventListener('click', ()=>setMode('admin'));
+
+// ---------- panel administratora ----------
+let adminUsers = [];
+let adminNote = {text:'', err:false};
+function adminToast(text, err){ adminNote = {text: text, err: !!err}; const t = $id('adToast'); if(t){ t.textContent = text; t.className = 'ad-toast' + (err ? ' err' : ''); } }
+const VIS_OPTS = [[1,'Tylko bieżący miesiąc'],[2,'Bieżący + 1 poprzedni'],[3,'Bieżący + 2 poprzednie'],[0,'Cała historia']];
+
+function adminUserCard(u){
+  const nowVal = `${curYear}-${String(curMonth).padStart(2,'0')}`;
+  const pinLine = u.startPin
+    ? `<span class="ad-pinshow">${u.startPin}</span> <span class="ad-dim">ustawiony przez Ciebie — serwisant jeszcze go nie zmienił</span>`
+    : `<span class="ad-dim">ustawiony przez serwisanta (ukryty)</span>`;
+  return `<div class="ad-card" data-id="${escapeAttr(u.id)}">
+    <div class="ad-row"><div><b>${escapeHtml(u.name)}</b><div class="ad-dim">login ${escapeHtml(u.id)}</div></div><span class="ad-pill ${u.locked?'bad':'ok'}">${u.locked?'zablokowany':'aktywny'}</span></div>
+    <div class="ad-lab">PIN</div>
+    <div class="ad-pinline">${pinLine}</div>
+    <div class="ad-row2"><input class="ad-in f-np" inputmode="numeric" maxlength="6" placeholder="nowy PIN (6 cyfr)"><button class="ad-btn" data-act="setpin">Ustaw</button></div>
+    <div class="ad-lab">Co widzi w historii</div>
+    <select class="ad-in f-vis" data-act="vis">${VIS_OPTS.map(o=>`<option value="${o[0]}" ${o[0]===u.visibleMonths?'selected':''}>${o[1]}</option>`).join('')}</select>
+    <div class="ad-lab">Uprawnienia do plików</div>
+    <label class="ad-chk"><input type="checkbox" class="f-exp" data-act="perm" ${u.canExport?'checked':''}> Może pobierać (eksport .xlsx)</label>
+    <label class="ad-chk"><input type="checkbox" class="f-imp" data-act="perm" ${u.canImport?'checked':''}> Może wgrywać (import .xlsx)</label>
+    <div class="ad-lab">Ty na jego koncie</div>
+    <input type="month" class="ad-in f-month" value="${nowVal}">
+    <div class="ad-row2 wrap"><a href="#" class="ad-btn" data-act="aexp">↑ Eksportuj jego kartę</a><label class="ad-btn">↓ Importuj do jego karty…<input type="file" class="f-file" accept=".xlsx,${XLSX_MIME}"></label></div>
+    <div class="ad-row2 wrap">${u.locked?'<button class="ad-btn" data-act="unlock">Odblokuj konto</button>':''}<button class="ad-btn danger" data-act="off">Wyłącz konto</button></div>
+  </div>`;
+}
+
+async function renderAdmin(){
+  const box = $id('adminView');
+  box.innerHTML = '<div class="ad-note">Wczytywanie…</div>';
+  let out;
+  try{ out = await api('admin.list'); }
+  catch(e){ box.innerHTML = '<div class="ad-note">Brak połączenia z serwerem.</div>'; return; }
+  if(!out || !out.ok){ box.innerHTML = '<div class="ad-note">Brak dostępu do panelu.</div>'; return; }
+  adminUsers = out.users;
+  const active = out.users.filter(u=>u.active && u.role !== 'admin');
+  const off = out.users.filter(u=>!u.active);
+  const me = out.users.find(u=>u.role === 'admin' && u.id === userId());
+  box.innerHTML = `
+    <div class="ad-head"><b>Serwisanci</b><button class="ad-btn" data-act="addtoggle">＋ Dodaj</button></div>
+    <div class="ad-card hide" id="adAdd"><b>Nowy serwisant</b>
+      <div class="ad-lab">Imię i nazwisko</div><input class="ad-in" id="adNewName" placeholder="Jan Kowalski">
+      <div class="ad-row2"><div><div class="ad-lab">Login (skrót, litery)</div><input class="ad-in" id="adNewId" maxlength="6" autocapitalize="characters" placeholder="JK"></div>
+      <div><div class="ad-lab">PIN startowy</div><input class="ad-in" id="adNewPin" inputmode="numeric" maxlength="6" placeholder="6 cyfr"></div></div>
+      <button class="ad-btn primary" data-act="create">Utwórz konto</button></div>
+    ${me?`<div class="ad-card"><div class="ad-row"><div><b>${escapeHtml(me.name)}</b> <span class="ad-pill">admin</span><div class="ad-dim">login ${escapeHtml(me.id)} · własny PIN zmienisz w menu konta</div></div><span class="ad-pill ok">aktywny</span></div></div>`:''}
+    ${active.map(adminUserCard).join('') || '<div class="ad-note">Brak serwisantów. Dodaj pierwszego przyciskiem „＋ Dodaj”.</div>'}
+    ${off.length?`<details class="ad-off"><summary>Wyłączeni (${off.length})</summary>${off.map(u=>`<div class="ad-card" data-id="${escapeAttr(u.id)}"><div class="ad-row"><div><b>${escapeHtml(u.name)}</b><div class="ad-dim">login ${escapeHtml(u.id)} · dane i PIN zostają</div></div><button class="ad-btn" data-act="on">Włącz konto</button></div></div>`).join('')}</details>`:''}
+    <div class="ad-card"><b>Kopia zapasowa</b><div class="ad-dim" style="margin:4px 0 8px">Wszystkie konta i dane w jednym pliku .json na Twoim Dysku Google (prywatny, bez PIN-ów). Otwórz go w aplikacji Dysk i zapisz na telefonie.</div>
+      <button class="ad-btn" data-act="backup">↓ Pobierz pełną kopię</button><div id="adBackupLink"></div></div>
+    <div class="ad-toast${adminNote.err?' err':''}" id="adToast">${escapeHtml(adminNote.text)}</div>
+    <div class="ad-dim" style="margin-top:8px"><i>Każda Twoja zmiana na kontach serwisantów zapisuje się w dzienniku (kto, co, kiedy), bez PIN-ów i treści godzin.</i></div>`;
+}
+
+const ADMIN_ERR = {exists:'Taki login już istnieje.', bad:'Nieprawidłowe dane.', forbidden:'Brak uprawnień.', self:'Nie można wyłączyć własnego konta.', hidden:'Miesiąc niedostępny.'};
+async function adminCall(action, payload, okMsg){
+  try{
+    const out = await api(action, payload);
+    if(out && out.ok){ adminToast(okMsg || 'Zapisano.'); return out; }
+    adminToast((out && ADMIN_ERR[out.error]) || 'Operacja nie powiodła się.', true);
+  }catch(e){ adminToast('Brak połączenia z serwerem.', true); }
+  return null;
+}
+function cardUser(el){ const c = el.closest('[data-id]'); return c ? adminUsers.find(u=>u.id === c.dataset.id) : null; }
+function cardMonth(el){
+  const v = (el.closest('.ad-card').querySelector('.f-month') || {}).value || '';
+  const m = /^(\d{4})-(\d{2})$/.exec(v);
+  return m ? [Number(m[1]), Number(m[2])] : [curYear, curMonth];
+}
+
+$id('adminView').addEventListener('click', async (e)=>{
+  const el = e.target.closest('[data-act]');
+  if(!el) return;
+  const act = el.dataset.act;
+  if(act === 'addtoggle'){ $id('adAdd').classList.toggle('hide'); return; }
+  if(act === 'create'){
+    const name = $id('adNewName').value.trim(), id = $id('adNewId').value.trim().toUpperCase(), pin = $id('adNewPin').value.trim();
+    if(!name || !/^[A-Z]{1,6}$/.test(id) || !/^\d{6}$/.test(pin)){ adminToast('Podaj imię i nazwisko, skrót (1–6 liter) i PIN z 6 cyfr.', true); return; }
+    if(await adminCall('admin.createUser', {id: id, name: name, pin: pin, visibleMonths: 0}, `Utworzono konto: ${name} (${id}). PIN startowy widzisz na karcie.`)) await renderAdmin();
+    return;
+  }
+  if(act === 'backup'){
+    adminToast('Zapisuję kopię na Dysku…');
+    const out = await adminCall('admin.backupDrive', {}, 'Kopia zapisana na Dysku Google.');
+    if(out) $id('adBackupLink').innerHTML = `<a class="ad-btn primary" href="${escapeAttr(out.url)}" target="_blank" rel="noopener">Otwórz ${escapeHtml(out.name)}</a>`;
+    return;
+  }
+  const u = cardUser(el);
+  if(!u) return;
+  if(act === 'setpin'){
+    const pin = el.closest('.ad-card').querySelector('.f-np').value.trim();
+    if(!/^\d{6}$/.test(pin)){ adminToast('PIN to dokładnie 6 cyfr.', true); return; }
+    if(await adminCall('admin.setPin', {id: u.id, pin: pin}, `Nowy PIN dla ${u.name} ustawiony — zostanie wylogowany na telefonie.`)) await renderAdmin();
+  } else if(act === 'unlock'){
+    if(await adminCall('admin.unlock', {id: u.id}, `Konto ${u.name} odblokowane.`)) await renderAdmin();
+  } else if(act === 'off'){
+    if(confirm(`Wyłączyć konto ${u.name}? Dane zostają, konto zniknie z listy, a Ty włączysz je w każdej chwili.`) &&
+       await adminCall('admin.setActive', {id: u.id, active: false}, `Konto ${u.name} wyłączone.`)) await renderAdmin();
+  } else if(act === 'on'){
+    if(await adminCall('admin.setActive', {id: u.id, active: true}, `Konto ${u.name} włączone.`)) await renderAdmin();
+  } else if(act === 'aexp'){
+    await adminExport(el, u, e);
+  }
+});
+$id('adminView').addEventListener('change', async (e)=>{
+  const el = e.target;
+  if(el.classList.contains('f-vis')){
+    const u = cardUser(el); if(!u) return;
+    if(await adminCall('admin.setVisibility', {id: u.id, months: Number(el.value)}, 'Zapisano: zmiana działa od razu.')) u.visibleMonths = Number(el.value);
+  } else if(el.classList.contains('f-exp') || el.classList.contains('f-imp')){
+    const u = cardUser(el); if(!u) return;
+    const card = el.closest('.ad-card');
+    await adminCall('admin.setPerms', {id: u.id, canExport: card.querySelector('.f-exp').checked, canImport: card.querySelector('.f-imp').checked}, `Zapisano uprawnienia: ${u.name}.`);
+  } else if(el.classList.contains('f-file')){
+    await adminImport(el);
+  }
+});
+
+// Eksport karty serwisanta (na koncie admina): dwuetapowy link jak przy zwykłym eksporcie na iOS.
+async function adminExport(a, u, e){
+  if(a.dataset.ready === '1'){
+    setTimeout(()=>{ a.dataset.ready = ''; a.removeAttribute('href'); a.textContent = '↑ Eksportuj jego kartę'; }, 600);
+    return;                                   // prawdziwe dotknięcie linku — przeglądarka pobiera plik
+  }
+  e.preventDefault();
+  const [yy, mm] = cardMonth(a);
+  a.textContent = 'przygotowuję…';
+  try{
+    const g = await api('admin.get', {id: u.id, key: storageKey(yy, mm)});
+    if(!g || !g.ok) throw new Error('nie udało się odczytać karty');
+    const n = daysInMonth(yy, mm);
+    const arr = (g.value && g.value.trim()) ? migrateOld(JSON.parse(g.value), n) : blankMonth(n);
+    const saved = {d: monthData, y: curYear, m: curMonth};
+    let built;
+    try{ monthData = arr; monthData._meta = {normaOverride: null}; curYear = yy; curMonth = mm; built = buildWorkbook(u); }
+    finally{ monthData = saved.d; curYear = saved.y; curMonth = saved.m; }
+    a.href = await uploadExport(built.wb, built.filename, u.id);
+    a.dataset.ready = '1';
+    a.textContent = 'pobierz ' + built.filename + '!';
+    adminToast('Plik gotowy — dotknij jeszcze raz, żeby go pobrać.');
+  }catch(err){
+    a.textContent = '↑ Eksportuj jego kartę';
+    adminToast('Eksport się nie udał: ' + err.message, true);
+  }
+}
+// Import pliku .xlsx do wybranego miesiąca na koncie serwisanta.
+async function adminImport(input){
+  const u = cardUser(input);
+  const file = input.files[0];
+  if(!u || !file) return;
+  const [yy, mm] = cardMonth(input);
+  if(!confirm(`Zaimportować plik do karty: ${u.name}, ${MONTH_NAMES[mm-1]} ${yy}? To nadpisze jego wpisy w tym miesiącu.`)){ input.value = ''; return; }
+  try{
+    const wb = XLSX.read(await file.arrayBuffer(), {type: 'array'});
+    const arr = xlsxToMonthArray(wb.Sheets[wb.SheetNames[0]], yy, mm);
+    const out = await adminCall('admin.set', {id: u.id, key: storageKey(yy, mm), value: JSON.stringify(arr)}, `Zaimportowano do karty ${u.name} (${MONTH_NAMES[mm-1]} ${yy}). Sprawdź godziny.`);
+    if(!out) throw new Error('serwer odmówił zapisu');
+  }catch(err){ adminToast('Import się nie udał: ' + err.message, true); }
+  input.value = '';
+}
+
+// ---------- start ----------
+async function startApp(){
+  if(!auth){ showLogin(); return; }
+  hideLogin();
+  try{
+    const me = await api('me');
+    if(me && me.ok){ auth.user = me.user; saveAuth(auth); }
+    else if(me && me.error === 'auth') return;      // api() pokazało już ekran logowania
+  }catch(e){ /* offline: zostajemy przy zapamiętanym koncie */ }
+  applyUserUI();
+  settings = loadSettings();
+  setMode('karta');
   monthData = await loadMonth(curYear, curMonth);
   ensureMeta();
   render();
   refreshYearlyUrlop();
   checkConnection();
-})();
+}
+startApp();
 </script>
 </body>
 </html>

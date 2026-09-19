@@ -67,7 +67,7 @@ logowania.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
   (nadgodziny/niedobór), niebieski = wartości referencyjne.
 
-## Funkcje (stan: 19.09.2026, v1.2)
+## Funkcje (stan: 19.09.2026, v1.3 — patrz też punkt KONTA w Otwartych tematach)
 
 - Dzień = Praca albo Urlop (z komentarzem). Praca: bloki czasu z kategorią —
   Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok. Organizacja
@@ -136,20 +136,30 @@ logowania.
   klucz i log NIE mogą leżeć w %LOCALAPPDATA% — pakiet aplikacji Claude wirtualizuje tam zapisy i Harmonogram widzi
   inne pliki (tak zepsuł się pierwszy test). Pierwsze pełne automatyczne pobranie: następny dzień. Odtwarzanie: wiersze data →
   zakładka Data (klucz, wartość), konta/PIN-y przez admin.createUser/setPin.
-- KONTA I BEZPIECZEŃSTWO (w toku, etap 1 z 3): backend z logowaniem jest wdrożony (Kod.gs, wersja @6),
-  ale NADAL działa też stary otwarty tryb (`LEGACY_OPEN = true`), bo frontend jeszcze nie ma
-  logowania. Etap 2: frontend v1.3 (ekran logowania login=skrót + PIN 6 cyfr, token sesji 30 dni,
-  przełącznik Karta/Admin, zakładka Admin, Zmień PIN, komunikat o ukrytym miesiącu) — najpierw makieta
-  do akceptacji. Etap 3: `LEGACY_OPEN = false` i redeploy (zamyka otwarty dostęp).
-  Backend: akcje POST {action, token,...}: login, logout, me, get, set, export, changePin oraz
-  admin.list/createUser/setPin/setName/setVisibility/unlock/setActive/get. Konta w zakładce Users
-  (PIN tylko jako HMAC z pepperem z właściwości skryptu; blokada 5 błędów → 5 min, podwajana do 24 h;
-  Piotr/admin odblokowuje), sesje w zakładce Sessions (tylko SHA-256 tokenu). Dane: konto PF (admin,
-  Paweł) ma stare klucze bez prefiksu (zero migracji); pozostali pod `ID::klucz`. Widoczność historii
-  per konto (visibleMonths: 0=całość, 1=bieżący, 2, 3…) egzekwowana na serwerze (odczyt i zapis
-  ukrytego miesiąca → błąd hidden; admin widzi wszystko; dane się nie kasują). Konta: PF (admin),
-  PS = Piotr S (użytkownik testowy; PIN startowy słaby — do zmiany). Testy logiki: atrapa Apps Script
-  (69 sprawdzeń). PIN-ów NIE zapisujemy w repo ani w CLAUDE.md.
+- KONTA I BEZPIECZEŃSTWO (etap 2 z 3 wdrożony 19.09.2026, v1.3): appka ma ekran logowania (login = skrót +
+  PIN 6 cyfr), sesję z tokenem 30 dni (localStorage `kg_auth_v1`), menu konta (Zmień PIN, Wyloguj), dla admina
+  przełącznik Karta/Admin i panel administratora. Cała komunikacja z serwerem idzie przez `api(action, payload)`
+  (POST text/plain, token w treści). Lokalny bufor jest per konto (`lsKey`: PF pod starymi kluczami, reszta
+  `ID::klucz`). ETAP 3 (do zrobienia po potwierdzeniu przez Szefa, że logowanie działa na jego telefonie):
+  `LEGACY_OPEN = false` w Kod.gs i redeploy — zamyka stary otwarty dostęp (GET ?key= i POST {key,value}).
+  Do tego czasu adres /exec nadal pozwala czytać dane starą drogą!
+  Backend: akcje POST {action, token,...}: login, logout, me, get, set, urlopYear, export, changePin oraz
+  admin.list/createUser/setPin/setName/setVisibility/setPerms/unlock/setActive/get/set/backup/backupDrive.
+  Konta w zakładce Users (PIN jako HMAC z pepperem z właściwości skryptu; PIN ustawiony przez admina —
+  startowy/reset — jest odwracalnie zaszyfrowany i widoczny w panelu do czasu, aż serwisant sam go zmieni;
+  blokada 5 błędów → 5 min, podwajana do 24 h; admin odblokowuje), sesje w Sessions (tylko SHA-256 tokenu),
+  dziennik zmian admina w Audit (bez PIN-ów i treści godzin). Dane: konto PF (admin, Paweł) ma stare klucze
+  bez prefiksu (zero migracji); pozostali pod `ID::klucz`. Widoczność historii per konto (visibleMonths:
+  0=całość, 1=bieżący, 2, 3) egzekwowana na serwerze (odczyt i zapis ukrytego miesiąca → błąd hidden, lokalna
+  kopia ukrytego miesiąca jest usuwana z telefonu; admin widzi wszystko; dane się nie kasują). Urlopy liczy
+  serwer (`urlopYear`) z PEŁNYCH danych, więc licznik roczny i wykres są poprawne mimo ukrytych miesięcy;
+  lista dat i komentarzy tylko z widocznych. Uprawnienia canExport/canImport per konto (UI-level, serwer
+  wymusza eksport przez Dysk); admin eksportuje/importuje w imieniu serwisanta (plik z jego skrótem).
+  Wyłączenie konta = brak logowania, sesje kasowane, dane i PIN zostają; panel chowa je w „Wyłączeni”.
+  Kopia na Dysku: `admin.backupDrive` zapisuje PRYWATNY plik w folderze „KG-kopie” (link do otwarcia w Dysku).
+  Konta: PF (admin), PS = Piotr S (testowy; PIN reset przez admina), AB nie istnieje na produkcji (tylko w
+  sandboxie). Testy: atrapa Apps Script (116 sprawdzeń backendu) + sandbox `sandbox-auth.js` (prawdziwy Kod.gs
+  na atrapie Arkusza + appka; `node tools/sandbox-auth.js index.html Kod.gs`, fikcyjne PIN-y 000111 (PF) i 000222 (PS)). PIN-ów NIE zapisujemy w repo ani w CLAUDE.md.
 
 ## Więcej kontekstu
 
