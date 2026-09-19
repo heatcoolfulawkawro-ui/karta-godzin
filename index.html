@@ -15,7 +15,9 @@
   body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',Roboto,Arial,sans-serif; padding-bottom:24px; }
   header{ position:sticky; top:0; z-index:5; background:linear-gradient(180deg,#151c22 0%, #12181d 100%); border-bottom:1px solid var(--line); padding:12px 16px 8px; }
   header h1{ margin:0 0 2px; font-size:16px; font-weight:700; }
+  header h1 .vertag{ font-size:10px; font-weight:400; color:var(--ink-dim); background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:1px 5px; margin-left:6px; vertical-align:middle; }
   header .who{ color:var(--ink-dim); font-size:12px; margin-bottom:8px; }
+  header .who .buildtag{ color:var(--ink-dim); }
   .monthbar{ display:flex; align-items:center; gap:8px; }
   .monthbar button{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); width:32px; height:32px; border-radius:8px; font-size:16px; }
   .monthbar .label{ flex:1; text-align:center; font-weight:600; font-size:14.5px; text-transform:capitalize; }
@@ -98,11 +100,13 @@
 
   .block{ margin-top:14px; padding-top:10px; border-top:1px solid var(--line); }
   .block:first-of-type{ border-top:none; }
-  .block-kind{ display:flex; gap:6px; margin-bottom:6px; }
-  .block-kind button{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:6px 2px; border-radius:7px; font-size:11px; }
+  .block-kind{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px; }
+  .block-kind button{ flex:1 1 30%; min-width:0; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:6px 2px; border-radius:7px; font-size:10px; }
   .block-kind button.active[data-kind=biuro]{ background:#4d7ea8; color:#eef5fb; border-color:#4d7ea8; }
   .block-kind button.active[data-kind=obiekt]{ background:#c07a34; color:#fff6ee; border-color:#c07a34; }
   .block-kind button.active[data-kind=wizja]{ background:#7a5ca8; color:#f5f0fb; border-color:#7a5ca8; }
+  .block-kind button.active[data-kind=organizacja]{ background:#5a8a5a; color:#eafbea; border-color:#5a8a5a; }
+  .block-kind button.active[data-kind=dojazd]{ background:var(--green); color:#0d1f14; border-color:var(--green); }
   .block-row{ display:flex; align-items:center; gap:8px; }
   .block-row input[type=time]{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 6px; font-size:14px; min-width:0; }
   .block-row span.sep{ color:var(--ink-dim); }
@@ -156,8 +160,8 @@
 <div class="savetag" id="savetag">zapisano</div>
 
 <header>
-  <h1>Karta godzin</h1>
-  <div class="who">Paweł Fuławka</div>
+  <h1>Karta godzin <span class="vertag">v1.0</span></h1>
+  <div class="who">Paweł Fuławka · <span class="buildtag">18.09.2026 10:09</span></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
     <div class="label" id="monthLabel">—</div>
@@ -225,6 +229,7 @@
       <div class="detail-row"><label><input type="checkbox" id="chkBiuro" checked> Biuro</label><span class="val" id="sBiuro">0:00</span></div>
       <div class="detail-row"><label><input type="checkbox" id="chkObiekt" checked> Obiekt</label><span class="val" id="sObiekt">0:00</span></div>
       <div class="detail-row"><label><input type="checkbox" id="chkWizja" checked> Wizje lokalne</label><span class="val" id="sWizja">0:00</span></div>
+      <div class="detail-row"><label><input type="checkbox" id="chkOrganizacja" checked> Organizacja</label><span class="val" id="sOrganizacja">0:00</span></div>
       <div class="detail-row"><label>🚗 Dojazdy <span class="hint">(zawsze liczone)</span></label><span class="val" id="sDojazd">0:00</span></div>
       <div class="detail-row"><label>☕ Przerwy <span class="hint">(nie liczone)</span></label><span class="val" id="sPrzerwa">0:00</span></div>
       <div class="detail-row"><label>Dni robocze (bez weekendów i świąt)</label><span class="val" id="sWorkdays">0</span></div>
@@ -239,8 +244,8 @@
 <script>
 const DAY_NAMES = ['Nd','Pn','Wt','Śr','Czw','Pt','So'];
 const MONTH_NAMES = ['styczeń','luty','marzec','kwiecień','maj','czerwiec','lipiec','sierpień','wrzesień','październik','listopad','grudzień'];
-const KIND_LABEL = {biuro:'🏢 Biuro', obiekt:'🔧 Obiekt', wizja:'👁 Wizja'};
-const KIND_SHORT = {biuro:'Biuro', obiekt:'Obiekt', wizja:'Wizja'};
+const KIND_LABEL = {biuro:'🏢 Biuro', obiekt:'🔧 Obiekt', wizja:'👁 Wizja', organizacja:'📋 Organizacja', dojazd:'🚗 Dojazd'};
+const KIND_SHORT = {biuro:'Biuro', obiekt:'Obiekt', wizja:'Wizja', organizacja:'Organizacja', dojazd:'Dojazd'};
 
 let today = new Date();
 let curYear = today.getFullYear();
@@ -373,14 +378,18 @@ function computeEffectiveBlocks(blocks){
 }
 
 function dayStats(d){
-  if(d.dayType==='urlop') return {biuro:0,obiekt:0,wizja:0,dojazd:0,przerwa:0,worked:0};
+  if(d.dayType==='urlop') return {biuro:0,obiekt:0,wizja:0,organizacja:0,dojazd:0,przerwa:0,worked:0};
   const eff = computeEffectiveBlocks(d.blocks);
-  let biuro=0,obiekt=0,wizja=0,dojazd=0,przerwa=0;
+  let biuro=0,obiekt=0,wizja=0,organizacja=0,dojazd=0,przerwa=0;
   eff.forEach((b,i)=>{
     if(b.startEff==null) return;
     const dur = b.endEff - b.startEff;
     const kind = d.blocks[i].kind;
-    if(kind==='biuro') biuro+=dur; else if(kind==='wizja') wizja+=dur; else obiekt+=dur;
+    if(kind==='biuro') biuro+=dur;
+    else if(kind==='wizja') wizja+=dur;
+    else if(kind==='organizacja') organizacja+=dur;
+    else if(kind==='dojazd') dojazd+=dur;
+    else obiekt+=dur;
   });
   for(let i=0;i<eff.length-1;i++){
     if(eff[i].endEff==null || eff[i+1].startEff==null) continue;
@@ -389,7 +398,7 @@ function dayStats(d){
     const type = d.blocks[i].gapAfter || 'dojazd';
     if(type==='przerwa') przerwa+=gap; else dojazd+=gap;
   }
-  return {biuro,obiekt,wizja,dojazd,przerwa,worked:biuro+obiekt+wizja+dojazd};
+  return {biuro,obiekt,wizja,organizacja,dojazd,przerwa,worked:biuro+obiekt+wizja+organizacja+dojazd};
 }
 
 function dayWorkedMinutes(d){ return dayStats(d).worked; }
@@ -452,8 +461,9 @@ function workdaysCount(y,m){
 }
 
 function loadSettings(){
-  try{ return JSON.parse(localStorage.getItem('karta_godzin_ustawienia')) || {biuro:true,obiekt:true,wizja:true}; }
-  catch(e){ return {biuro:true,obiekt:true,wizja:true}; }
+  const def = {biuro:true,obiekt:true,wizja:true,organizacja:true};
+  try{ return Object.assign(def, JSON.parse(localStorage.getItem('karta_godzin_ustawienia')) || {}); }
+  catch(e){ return def; }
 }
 function saveSettings(s){ localStorage.setItem('karta_godzin_ustawienia', JSON.stringify(s)); }
 let settings = loadSettings();
@@ -467,23 +477,23 @@ function ensureMeta(){ if(!monthData._meta) monthData._meta = {normaOverride:nul
 ensureMeta();
 
 function computeTotals(){
-  let biuro=0,obiekt=0,wizja=0,dojazd=0,przerwa=0,urlopDays=0,filledDays=0;
+  let biuro=0,obiekt=0,wizja=0,organizacja=0,dojazd=0,przerwa=0,urlopDays=0,filledDays=0;
   const n = daysInMonth(curYear,curMonth);
   for(let i=0;i<n;i++){
     const d = monthData[i];
     if(!d || !d.dayType) continue;
     if(d.dayType==='urlop'){ urlopDays++; continue; }
     const st = dayStats(d);
-    biuro+=st.biuro; obiekt+=st.obiekt; wizja+=st.wizja; dojazd+=st.dojazd; przerwa+=st.przerwa;
+    biuro+=st.biuro; obiekt+=st.obiekt; wizja+=st.wizja; organizacja+=st.organizacja; dojazd+=st.dojazd; przerwa+=st.przerwa;
     if(st.worked>0) filledDays++;
   }
-  const worked = biuro+obiekt+wizja+dojazd; // dojazd counts unconditionally
-  const included = (settings.biuro?biuro:0)+(settings.obiekt?obiekt:0)+(settings.wizja?wizja:0)+dojazd;
+  const worked = biuro+obiekt+wizja+organizacja+dojazd; // dojazd counts unconditionally
+  const included = (settings.biuro?biuro:0)+(settings.obiekt?obiekt:0)+(settings.wizja?wizja:0)+(settings.organizacja?organizacja:0)+dojazd;
   const norma = monthNormaOverride() ?? monthNormaDefault();
   const urlopH = urlopDays*8*60;
   const wymagane = Math.max(0, norma - urlopH);
   const bilans = included - wymagane;
-  return {biuro,obiekt,wizja,dojazd,przerwa,worked,included,norma,urlopH,wymagane,bilans,filledDays,urlopDays};
+  return {biuro,obiekt,wizja,organizacja,dojazd,przerwa,worked,included,norma,urlopH,wymagane,bilans,filledDays,urlopDays};
 }
 
 function updateSummary(){
@@ -492,6 +502,7 @@ function updateSummary(){
   document.getElementById('sBiuro').textContent = fmtHM(t.biuro);
   document.getElementById('sObiekt').textContent = fmtHM(t.obiekt);
   document.getElementById('sWizja').textContent = fmtHM(t.wizja);
+  document.getElementById('sOrganizacja').textContent = fmtHM(t.organizacja);
   document.getElementById('sDojazd').textContent = fmtHM(t.dojazd);
   document.getElementById('sPrzerwa').textContent = fmtHM(t.przerwa);
   document.getElementById('sWorkdays').textContent = workdaysCount(curYear,curMonth);
@@ -777,7 +788,7 @@ function renderBody(dayNum){
   d.blocks.forEach((b, bi) => {
     html += `<div class="block" data-block="${bi}">
       <div class="block-kind">
-        ${['biuro','obiekt','wizja'].map(k=>`<button data-kind="${k}" data-act="kind" class="${b.kind===k?'active':''}">${KIND_LABEL[k]}</button>`).join('')}
+        ${['biuro','obiekt','wizja','organizacja','dojazd'].map(k=>`<button data-kind="${k}" data-act="kind" class="${b.kind===k?'active':''}">${KIND_LABEL[k]}</button>`).join('')}
       </div>
       <div class="block-row">
         <input type="time" data-field="start" value="${b.start||''}">
@@ -805,12 +816,21 @@ function renderBody(dayNum){
     });
   });
 
-  // kind buttons — in-place class toggle only, no rebuild
+  // kind buttons — in-place class toggle only, no rebuild.
+  // Switching a block to "Dojazd" auto-fills its start from the previous
+  // block's end (if empty) — no need to invent a fake destination block just
+  // to make the drive-home time count.
   body.querySelectorAll('[data-act="kind"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const blockEl = btn.closest('.block');
       const bi = parseInt(blockEl.dataset.block);
       d.blocks[bi].kind = btn.dataset.kind;
+      if(btn.dataset.kind==='dojazd' && !d.blocks[bi].start && bi>0 && d.blocks[bi-1].end){
+        d.blocks[bi].start = d.blocks[bi-1].end;
+        saveMonth();
+        renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
+        return;
+      }
       saveMonth();
       blockEl.querySelectorAll('.block-kind button').forEach(bb=>bb.classList.toggle('active', bb.dataset.kind===d.blocks[bi].kind));
       updateDayBadge(dayNum); updateSummary();
@@ -989,7 +1009,7 @@ document.getElementById('detailOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'detailOverlay') e.target.classList.remove('open');
 });
 
-['chkBiuro','chkObiekt','chkWizja'].forEach(id=>{
+['chkBiuro','chkObiekt','chkWizja','chkOrganizacja'].forEach(id=>{
   document.getElementById(id).addEventListener('change', (e)=>{
     const key = id.replace('chk','').toLowerCase();
     settings[key] = e.target.checked;
@@ -1000,6 +1020,7 @@ document.getElementById('detailOverlay').addEventListener('click', (e)=>{
 document.getElementById('chkBiuro').checked = settings.biuro;
 document.getElementById('chkObiekt').checked = settings.obiekt;
 document.getElementById('chkWizja').checked = settings.wizja;
+document.getElementById('chkOrganizacja').checked = settings.organizacja;
 
 document.getElementById('inpNorma').addEventListener('change', (e)=>{
   ensureMeta();
