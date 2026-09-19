@@ -11,7 +11,7 @@
 // PIN-y NIGDY nie są zapisywane — tylko HMAC(PIN; pepper+sól). Pepper leży we właściwościach
 // skryptu (poza Arkuszem i repo). Tokeny sesji są zapisywane tylko jako SHA-256.
 
-const LEGACY_OPEN = true;
+const LEGACY_OPEN = false; // stary otwarty tryb wyłączony 19.09.2026 (etap 3)
 const LEGACY_OWNER = 'PF'; // dane tego użytkownika leżą pod starymi, nieprefiksowanymi kluczami
 // SHA-256 jednorazowego klucza konfiguracji (sam klucz nie jest w repo). Akcja bootstrap
 // działa tylko przy pustej tabeli Users i tylko z kluczem pasującym do tego skrótu.

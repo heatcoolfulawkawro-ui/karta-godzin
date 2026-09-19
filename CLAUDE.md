@@ -136,13 +136,13 @@ logowania.
   klucz i log NIE mogą leżeć w %LOCALAPPDATA% — pakiet aplikacji Claude wirtualizuje tam zapisy i Harmonogram widzi
   inne pliki (tak zepsuł się pierwszy test). Pierwsze pełne automatyczne pobranie: następny dzień. Odtwarzanie: wiersze data →
   zakładka Data (klucz, wartość), konta/PIN-y przez admin.createUser/setPin.
-- KONTA I BEZPIECZEŃSTWO (etap 2 z 3 wdrożony 19.09.2026, v1.3): appka ma ekran logowania (login = skrót +
+- KONTA I BEZPIECZEŃSTWO (wszystkie 3 etapy wdrożone 19.09.2026, v1.3): appka ma ekran logowania (login = skrót +
   PIN 6 cyfr), sesję z tokenem 30 dni (localStorage `kg_auth_v1`), menu konta (Zmień PIN, Wyloguj), dla admina
   przełącznik Karta/Admin i panel administratora. Cała komunikacja z serwerem idzie przez `api(action, payload)`
   (POST text/plain, token w treści). Lokalny bufor jest per konto (`lsKey`: PF pod starymi kluczami, reszta
-  `ID::klucz`). ETAP 3 (do zrobienia po potwierdzeniu przez Szefa, że logowanie działa na jego telefonie):
-  `LEGACY_OPEN = false` w Kod.gs i redeploy — zamyka stary otwarty dostęp (GET ?key= i POST {key,value}).
-  Do tego czasu adres /exec nadal pozwala czytać dane starą drogą!
+  `ID::klucz`). ETAP 3 ZROBIONY (Szef potwierdził logowanie na telefonie): `LEGACY_OPEN = false` w Kod.gs — stary otwarty
+  dostęp (GET ?key= i POST {key,value}) jest zamknięty; adres /exec bez tokenu nic nie zwraca. Awaryjny powrót
+  = `LEGACY_OPEN = true` + push (nie robić bez potrzeby).
   Backend: akcje POST {action, token,...}: login, logout, me, get, set, urlopYear, export, changePin oraz
   admin.list/createUser/setPin/setName/setVisibility/setPerms/unlock/setActive/get/set/backup/backupDrive.
   Konta w zakładce Users (PIN jako HMAC z pepperem z właściwości skryptu; PIN ustawiony przez admina —
