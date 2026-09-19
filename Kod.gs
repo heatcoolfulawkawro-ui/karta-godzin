@@ -23,7 +23,7 @@ const BACKUP_KEY_SHA256 = '405126d49a5b99b58eb12240ce34b3659ca96e12c3bfb3f454bec
 
 const USERS_SHEET = 'Users';
 const SESSIONS_SHEET = 'Sessions';
-const USERS_HEADERS = ['id', 'name', 'role', 'salt', 'hash', 'fails', 'lockUntil', 'visibleMonths', 'active', 'lockCount', 'createdAt', 'canExport', 'canImport'];
+const USERS_HEADERS = ['id', 'name', 'role', 'salt', 'hash', 'fails', 'lockUntil', 'visibleMonths', 'active', 'lockCount', 'createdAt', 'canExport', 'canImport', 'startPin'];
 const AUDIT_SHEET = 'Audit';
 const AUDIT_HEADERS = ['time', 'actor', 'action', 'target', 'detail'];
 const SESSIONS_HEADERS = ['tokenHash', 'userId', 'expires', 'createdAt'];
@@ -140,6 +140,7 @@ function adminAction_(user, action, b) {
     case 'admin.get': return adminGet_(b);
     case 'admin.set': return adminSet_(b);
     case 'admin.backup': return buildDump_();
+    case 'admin.backupDrive': return backupToDrive_();
   }
   return fail_('bad');
 }
@@ -190,7 +191,7 @@ function changePin_(user, b) {
   if (!oldPin || !newPin) return fail_('bad');
   const u = findUser_(user.id);
   if (!safeEqual_(hashPin_(oldPin, u.salt), u.hash)) return fail_('bad');
-  setPin_(u, newPin);
+  setPin_(u, newPin, false);
   return { ok: true };
 }
 
@@ -272,7 +273,7 @@ function adminCreateUser_(b) {
   const months = validMonths_(b.visibleMonths === undefined ? 0 : b.visibleMonths);
   if (!id || !pin || !name || months === null) return fail_('bad');
   if (findUser_(id)) return fail_('exists');
-  createUser_(id, name, 'user', pin, months);
+  createUser_(id, name, 'user', pin, months, true);
   return { ok: true };
 }
 
@@ -280,7 +281,7 @@ function adminSetPin_(b) {
   const u = findUser_(validId_(b.id));
   const pin = validPin_(b.pin);
   if (!u || !pin) return fail_('bad');
-  setPin_(u, pin);
+  setPin_(u, pin, true);
   return { ok: true };
 }
 
@@ -318,6 +319,18 @@ function buildDump_() {
     counts: { data: data.length, users: users.length, audit: audit.length },
     data: data, users: users, audit: audit
   };
+}
+
+// Zapisuje pełny zrzut jako PRYWATNY plik na Dysku właściciela (bez linku publicznego) i zwraca
+// link do otwarcia w aplikacji Dysk na telefonie. Dodatkowa kopia po stronie Google.
+function backupToDrive_() {
+  const dump = buildDump_();
+  const folders = DriveApp.getFoldersByName('KG-kopie');
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder('KG-kopie');
+  const stamp = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd_HHmm');
+  const name = 'karta-godzin_' + stamp + '.json';
+  const file = folder.createFile(name, JSON.stringify(dump), 'application/json');
+  return { ok: true, name: name, url: file.getUrl(), counts: dump.counts };
 }
 
 function adminSetPerms_(b) {
@@ -419,6 +432,7 @@ function adminView_(u) {
     id: u.id, name: u.name, role: u.role, active: u.active,
     visibleMonths: u.visibleMonths, locked: u.lockUntil > Date.now(),
     lockUntil: u.lockUntil, fails: u.fails,
+    startPin: decStartPin_(u), pinSetBy: u.startPin ? 'admin' : 'user',
     canExport: u.role === 'admin' || u.canExport, canImport: u.role === 'admin' || u.canImport
   };
 }
@@ -450,6 +464,27 @@ function getPepper_() {
     props.setProperty('PEPPER', p);
   }
   return p;
+}
+
+// PIN startowy/zresetowany przez admina jest przechowywany odwracalnie (szyfr cyfrowy z kluczem z
+// pepperu), żeby admin mógł go przekazać serwisantowi. Kasowany, gdy serwisant ustawi własny PIN.
+function pinPad_(id, salt) {
+  return Utilities.computeHmacSha256Signature('startpin:' + id + ':' + salt, getPepper_());
+}
+
+function encStartPin_(pin, id, salt) {
+  const pad = pinPad_(id, salt);
+  let out = '';
+  for (let i = 0; i < pin.length; i++) out += String((Number(pin[i]) + (pad[i] & 255)) % 10);
+  return out;
+}
+
+function decStartPin_(u) {
+  if (!u.startPin) return '';
+  const pad = pinPad_(u.id, u.salt);
+  let out = '';
+  for (let i = 0; i < u.startPin.length; i++) out += String(((Number(u.startPin[i]) - (pad[i] & 255)) % 10 + 10) % 10);
+  return out;
 }
 
 function hashPin_(pin, salt) {
@@ -494,7 +529,8 @@ function readUsers_() {
       active: r[8] === true || r[8] === 'TRUE', lockCount: Number(r[9]) || 0,
       createdAt: r[10],
       canExport: r[11] === true || r[11] === 'TRUE',
-      canImport: r[12] === true || r[12] === 'TRUE'
+      canImport: r[12] === true || r[12] === 'TRUE',
+      startPin: String(r[13] || '')
     });
   }
   return out;
@@ -508,26 +544,28 @@ function findUser_(id) {
 }
 
 function userRow_(u) {
-  return [u.id, u.name, u.role, u.salt, u.hash, u.fails, u.lockUntil, u.visibleMonths, u.active, u.lockCount, u.createdAt, u.canExport === true, u.canImport === true];
+  return [u.id, u.name, u.role, u.salt, u.hash, u.fails, u.lockUntil, u.visibleMonths, u.active, u.lockCount, u.createdAt, u.canExport === true, u.canImport === true, u.startPin || ''];
 }
 
 function saveUser_(u) {
   getSheet_(USERS_SHEET, USERS_HEADERS).getRange(u.row, 1, 1, USERS_HEADERS.length).setValues([userRow_(u)]);
 }
 
-function createUser_(id, name, role, pin, visibleMonths) {
+function createUser_(id, name, role, pin, visibleMonths, startPinVisible) {
   const salt = Utilities.getUuid();
   const u = {
     id: id, name: name, role: role, salt: salt, hash: hashPin_(pin, salt), fails: 0,
     lockUntil: 0, visibleMonths: visibleMonths, active: true, lockCount: 0, createdAt: Date.now(),
-    canExport: false, canImport: false
+    canExport: false, canImport: false, startPin: ''
   };
+  if (startPinVisible) u.startPin = encStartPin_(pin, id, salt);
   getSheet_(USERS_SHEET, USERS_HEADERS).appendRow(userRow_(u));
 }
 
-function setPin_(u, pin) {
+function setPin_(u, pin, fromAdmin) {
   u.salt = Utilities.getUuid();
   u.hash = hashPin_(pin, u.salt);
+  u.startPin = fromAdmin ? encStartPin_(pin, u.id, u.salt) : '';
   u.fails = 0;
   u.lockCount = 0;
   u.lockUntil = 0;
