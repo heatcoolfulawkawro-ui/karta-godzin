@@ -209,8 +209,8 @@
 <div class="savetag" id="savetag">zapisano</div>
 
 <header>
-  <h1>Karta godzin <span class="vertag">v1.2</span></h1>
-  <div class="who">Paweł Fuławka · <span class="buildtag">19.09.2026 07:39</span></div>
+  <h1>Karta godzin <span class="vertag">v1.2.1</span></h1>
+  <div class="who">Paweł Fuławka · <span class="buildtag">19.09.2026 10:07</span></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
     <div class="label" id="monthLabel">—</div>
@@ -1414,13 +1414,13 @@ function isIOS(){
 }
 
 // Desktop: single tap, standard download, works reliably already.
-// iOS: two real taps on a genuine <a href> — the first tap only BUILDS the
-// file and attaches it to the link (preventDefault, no navigation yet); the
-// second tap is a real, unassisted user click on an anchor with a real href,
-// which Safari treats like any other link/download instead of a script-
-// triggered one. This mirrors the native file-picker import, which already
-// works reliably because it's a genuine browser control, not JS-simulated.
-document.getElementById('btnExport').addEventListener('click', function(e){
+// iOS: data: URIs on a link do nothing (top-level data: navigation is blocked),
+// so the primary path is the native share sheet (navigator.share with a File),
+// which offers "Save to Files", WhatsApp, Mail. Fallback when the share sheet
+// is unavailable: two real taps on a genuine <a href> with a blob: URL — the
+// first tap only BUILDS the file and attaches it to the link (preventDefault),
+// the second is a real, unassisted click on an anchor with a real href.
+document.getElementById('btnExport').addEventListener('click', async function(e){
   const tag = document.getElementById('btnExportTag');
   if(!isIOS()){
     e.preventDefault();
@@ -1432,19 +1432,31 @@ document.getElementById('btnExport').addEventListener('click', function(e){
   }
   if(this.dataset.ready === '1'){
     // Real href already set below — let the browser handle this tap natively.
+    const blobUrl = this.href;
     setTimeout(()=>{
       this.dataset.ready = '';
       this.removeAttribute('href');
       tag.textContent = 'xlsx';
       this.classList.remove('pulse');
+      try{ URL.revokeObjectURL(blobUrl); }catch(_){}
     }, 600);
     return;
   }
   e.preventDefault();
   try{
     const {wb, filename} = buildWorkbook();
-    const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
-    this.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
+    const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const bytes = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const file = new File([bytes], filename, {type: mime});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file], title: filename});
+        return;
+      }catch(err){
+        if(err && err.name === 'AbortError') return;
+      }
+    }
+    this.href = URL.createObjectURL(new Blob([bytes], {type: mime}));
     this.setAttribute('download', filename);
     this.dataset.ready = '1';
     tag.textContent = 'gotowe!';
