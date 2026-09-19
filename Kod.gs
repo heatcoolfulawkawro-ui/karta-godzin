@@ -19,7 +19,9 @@ const SETUP_KEY_SHA256 = 'eb51f1764184704daa527ded287062475859b31e55ca80607501c0
 
 const USERS_SHEET = 'Users';
 const SESSIONS_SHEET = 'Sessions';
-const USERS_HEADERS = ['id', 'name', 'role', 'salt', 'hash', 'fails', 'lockUntil', 'visibleMonths', 'active', 'lockCount', 'createdAt'];
+const USERS_HEADERS = ['id', 'name', 'role', 'salt', 'hash', 'fails', 'lockUntil', 'visibleMonths', 'active', 'lockCount', 'createdAt', 'canExport', 'canImport'];
+const AUDIT_SHEET = 'Audit';
+const AUDIT_HEADERS = ['time', 'actor', 'action', 'target', 'detail'];
 const SESSIONS_HEADERS = ['tokenHash', 'userId', 'expires', 'createdAt'];
 const SESSION_TTL_MS = 30 * 24 * 3600 * 1000;
 const MAX_FAILS = 5;
@@ -107,20 +109,31 @@ function dispatch_(b) {
     case 'logout': revokeSessions_(user.id, auth.tokenHash); return { ok: true };
     case 'get': return getData_(user, b);
     case 'set': return setData_(user, b);
-    case 'export': return exportXlsx_(b, user);
+    case 'export':
+      if (user.role !== 'admin' && !user.canExport) return fail_('forbidden');
+      return exportXlsx_(b, user);
+    case 'urlopYear': return urlopYear_(user, b);
     case 'changePin': return changePin_(user, b);
   }
   if (action.indexOf('admin.') !== 0) return fail_('bad');
   if (user.role !== 'admin') return fail_('forbidden');
+  const res = adminAction_(user, action, b);
+  if (res.ok && action !== 'admin.list' && action !== 'admin.get') audit_(user.id, action, b);
+  return res;
+}
+
+function adminAction_(user, action, b) {
   switch (action) {
     case 'admin.list': return { ok: true, users: readUsers_().map(adminView_) };
     case 'admin.createUser': return adminCreateUser_(b);
     case 'admin.setPin': return adminSetPin_(b);
     case 'admin.setVisibility': return adminSetVisibility_(b);
+    case 'admin.setPerms': return adminSetPerms_(b);
     case 'admin.unlock': return adminUnlock_(b);
     case 'admin.setName': return adminSetName_(b);
     case 'admin.setActive': return adminSetActive_(user, b);
     case 'admin.get': return adminGet_(b);
+    case 'admin.set': return adminSet_(b);
   }
   return fail_('bad');
 }
@@ -274,6 +287,66 @@ function adminSetVisibility_(b) {
   return { ok: true };
 }
 
+function adminSetPerms_(b) {
+  const u = findUser_(validId_(b.id));
+  if (!u || typeof b.canExport !== 'boolean' || typeof b.canImport !== 'boolean') return fail_('bad');
+  u.canExport = b.canExport;
+  u.canImport = b.canImport;
+  saveUser_(u);
+  return { ok: true };
+}
+
+// Admin zapisuje dane miesiąca na koncie serwisanta (np. import z .xlsx w jego imieniu).
+function adminSet_(b) {
+  const target = findUser_(validId_(b.id));
+  const key = validKey_(b.key);
+  const value = b.value;
+  if (!target || !key || typeof value !== 'string' || value.length > MAX_VALUE_CHARS) return fail_('bad');
+  writeRaw_(storageKey_(target, key), value);
+  return { ok: true };
+}
+
+// Dziennik zmian wykonanych przez admina (bez PIN-ów i bez treści danych).
+function audit_(actor, action, b) {
+  const detail = {};
+  ['key', 'months', 'active', 'canExport', 'canImport', 'role'].forEach(function (f) { if (b[f] !== undefined) detail[f] = b[f]; });
+  if (b.name !== undefined && action === 'admin.createUser') detail.name = String(b.name).slice(0, 60);
+  getSheet_(AUDIT_SHEET, AUDIT_HEADERS).appendRow([Date.now(), actor, action, String(b.id || ''), JSON.stringify(detail)]);
+}
+
+// Urlopy z całego roku, niezależnie od widoczności miesięcy: liczniki (counts) zawsze
+// z pełnych danych, a lista dni (items) tylko z miesięcy widocznych dla użytkownika.
+function urlopYear_(user, b) {
+  const year = Number(b.year);
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) return fail_('bad');
+  const rows = getDataSheet().getDataRange().getValues();
+  const byKey = {};
+  for (let i = 0; i < rows.length; i++) byKey[rows[i][0]] = rows[i][1];
+  const counts = [];
+  const items = [];
+  for (let m = 1; m <= 12; m++) {
+    const key = 'karta_godzin_v3_' + year + '_' + m;
+    const raw = byKey[storageKey_(user, key)];
+    let n = 0;
+    if (raw) {
+      try {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          const visible = !isHidden_(user, key);
+          arr.forEach(function (d, i) {
+            if (d && d.dayType === 'urlop') {
+              n++;
+              if (visible) items.push({ month: m, day: i + 1, komentarz: String(d.urlopKomentarz || '') });
+            }
+          });
+        }
+      } catch (e) { /* uszkodzony miesiąc pomijamy */ }
+    }
+    counts.push(n);
+  }
+  return { ok: true, counts: counts, items: items };
+}
+
 function adminSetName_(b) {
   const u = findUser_(validId_(b.id));
   const name = String(b.name || '').trim().slice(0, 60);
@@ -312,12 +385,16 @@ function adminView_(u) {
   return {
     id: u.id, name: u.name, role: u.role, active: u.active,
     visibleMonths: u.visibleMonths, locked: u.lockUntil > Date.now(),
-    lockUntil: u.lockUntil, fails: u.fails
+    lockUntil: u.lockUntil, fails: u.fails,
+    canExport: u.role === 'admin' || u.canExport, canImport: u.role === 'admin' || u.canImport
   };
 }
 
 function pub_(u) {
-  return { id: u.id, name: u.name, role: u.role, visibleMonths: u.visibleMonths };
+  return {
+    id: u.id, name: u.name, role: u.role, visibleMonths: u.visibleMonths,
+    canExport: u.role === 'admin' || u.canExport, canImport: u.role === 'admin' || u.canImport
+  };
 }
 
 // ---------- użytkownicy i sesje ----------
@@ -372,6 +449,7 @@ function getSheet_(name, headers) {
 function readUsers_() {
   const sheet = getSheet_(USERS_SHEET, USERS_HEADERS);
   const rows = sheet.getDataRange().getValues();
+  if (rows[0].length < USERS_HEADERS.length) sheet.getRange(1, 1, 1, USERS_HEADERS.length).setValues([USERS_HEADERS]);
   const out = [];
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
@@ -381,7 +459,9 @@ function readUsers_() {
       salt: String(r[3]), hash: String(r[4]), fails: Number(r[5]) || 0,
       lockUntil: Number(r[6]) || 0, visibleMonths: Number(r[7]) || 0,
       active: r[8] === true || r[8] === 'TRUE', lockCount: Number(r[9]) || 0,
-      createdAt: r[10]
+      createdAt: r[10],
+      canExport: r[11] === true || r[11] === 'TRUE',
+      canImport: r[12] === true || r[12] === 'TRUE'
     });
   }
   return out;
@@ -395,7 +475,7 @@ function findUser_(id) {
 }
 
 function userRow_(u) {
-  return [u.id, u.name, u.role, u.salt, u.hash, u.fails, u.lockUntil, u.visibleMonths, u.active, u.lockCount, u.createdAt];
+  return [u.id, u.name, u.role, u.salt, u.hash, u.fails, u.lockUntil, u.visibleMonths, u.active, u.lockCount, u.createdAt, u.canExport === true, u.canImport === true];
 }
 
 function saveUser_(u) {
@@ -406,7 +486,8 @@ function createUser_(id, name, role, pin, visibleMonths) {
   const salt = Utilities.getUuid();
   const u = {
     id: id, name: name, role: role, salt: salt, hash: hashPin_(pin, salt), fails: 0,
-    lockUntil: 0, visibleMonths: visibleMonths, active: true, lockCount: 0, createdAt: Date.now()
+    lockUntil: 0, visibleMonths: visibleMonths, active: true, lockCount: 0, createdAt: Date.now(),
+    canExport: false, canImport: false
   };
   getSheet_(USERS_SHEET, USERS_HEADERS).appendRow(userRow_(u));
 }
@@ -470,7 +551,8 @@ function exportXlsx_(body, user) {
   const name = String(body.name || '');
   const b64 = String(body.b64 || '');
   if (!/^\d{1,2}_\d{2}_[A-Za-z]{1,6}\.xlsx$/.test(name)) return fail_('bad name');
-  if (user && name.slice(-(user.id.length + 6)).toUpperCase() !== '_' + user.id + '.XLSX') return fail_('bad name');
+  const owner = user && user.role === 'admin' && body.forId ? validId_(body.forId) : (user && user.id);
+  if (user && (!owner || name.slice(-(owner.length + 6)).toUpperCase() !== '_' + owner + '.XLSX')) return fail_('bad name');
   if (!b64 || b64.length > EXPORT_MAX_B64 || b64.indexOf('UEsDB') !== 0) return fail_('bad file');
   const folders = DriveApp.getFoldersByName(EXPORT_FOLDER);
   const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(EXPORT_FOLDER);
