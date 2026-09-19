@@ -120,12 +120,19 @@ logowania.
   dziś appka obsługuje jedną osobę. Warunek Szefa: najpierw dopracować wygląd u
   niego, dopiero potem powielać. Wymaga ustaleń (kto widzi czyje godziny, osobne
   dane per osoba, ewentualny PIN) i makiety przed kodowaniem.
-- Eksport .xlsx na iPhonie: v1.2.1 (okno udostępniania) czeka na test Szefa. Plan B:
-  eksport po stronie Apps Script.
+- Eksport .xlsx na iPhonie: v1.2.1 NIE działa w Chrome na iOS (zapisuje plik tekstowy bez
+  nazwy — Chrome iOS nie ma udostępniania plików ani nazwy dla blob:). Nazwa docelowa ma
+  być M_RR_SKRÓT.xlsx (np. 9_26_PF). Zaakceptowane przez Szefa: eksport przez Apps Script
+  (plik tymczasowo na Dysku + zwykły link). Czeka na zgodę na publiczne udostępnianie
+  tymczasowego pliku i na jednorazowe przyznanie uprawnienia do Dysku.
 - BEZPIECZEŃSTWO: backend jest otwarty dla każdego (access ANYONE_ANONYMOUS, brak
   logowania, GAS_URL jawny w publicznym repo). Plan: logowanie serwisantów (login+PIN
   sprawdzany w Apps Script, sesja z tokenem, dane per użytkownik) + panel admina.
-  Czeka na decyzje Szefa; wymaga migracji kluczy i makiety.
+  Szef zaakceptował PIN 6-cyfrowy. Wymaganie: uprawnienie widoczności historii per
+  serwisant — tylko bieżący miesiąc / 2 / 3 miesiące / całość, zmieniane przez admina w
+  dowolnej chwili. Egzekwowane na serwerze; dane nie są kasowane (dowód czasu pracy),
+  admin widzi wszystko. Do rozważenia: zatwierdzanie/blokada zamkniętych miesięcy.
+  Wymaga migracji kluczy i makiety przed kodowaniem.
 
 ## Więcej kontekstu
 
