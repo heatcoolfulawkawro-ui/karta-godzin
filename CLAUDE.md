@@ -54,7 +54,10 @@ logowania.
   appka ma działać offline.
 - Na iOS działają tylko prawdziwe natywne elementy: `<input type="file">`
   i realne dotknięcie `<a href>`. Programowe `.click()` na ukrytym linku
-  i `location.href = dataURI` są zawodne — stąd dwuetapowy eksport .xlsx.
+  i `location.href = dataURI` są zawodne (link z data: URI nie robi nic — potwierdzone
+  przez Szefa na iPhonie). Od v1.2.1 eksport na iOS idzie przez natywne okno
+  udostępniania (`navigator.share` z plikiem → „Zapisz w Plikach"), a gdy go brak —
+  dwuetapowy link blob:. NIE potwierdzone na iPhonie po zmianie.
 - W polach czasu/komentarza nie przebudowuj DOM-u przy wpisywaniu (gubi
   fokus na telefonie) — odświeżaj tylko wyliczane etykiety.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
@@ -117,8 +120,12 @@ logowania.
   dziś appka obsługuje jedną osobę. Warunek Szefa: najpierw dopracować wygląd u
   niego, dopiero potem powielać. Wymaga ustaleń (kto widzi czyje godziny, osobne
   dane per osoba, ewentualny PIN) i makiety przed kodowaniem.
-- Do sprawdzenia: nie ma potwierdzenia, że dwuetapowy eksport .xlsx działa na
-  iPhonie. Plan B: eksport generowany po stronie Apps Script (link do pobrania).
+- Eksport .xlsx na iPhonie: v1.2.1 (okno udostępniania) czeka na test Szefa. Plan B:
+  eksport po stronie Apps Script.
+- BEZPIECZEŃSTWO: backend jest otwarty dla każdego (access ANYONE_ANONYMOUS, brak
+  logowania, GAS_URL jawny w publicznym repo). Plan: logowanie serwisantów (login+PIN
+  sprawdzany w Apps Script, sesja z tokenem, dane per użytkownik) + panel admina.
+  Czeka na decyzje Szefa; wymaga migracji kluczy i makiety.
 
 ## Więcej kontekstu
 
