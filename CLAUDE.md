@@ -67,7 +67,7 @@ logowania.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
   (nadgodziny/niedobór), niebieski = wartości referencyjne.
 
-## Funkcje (stan: 19.09.2026, v1.3 — patrz też punkt KONTA w Otwartych tematach)
+## Funkcje (stan: 21.09.2026, v1.4 — patrz też punkt KONTA w Otwartych tematach)
 
 - Dzień = Praca albo Urlop (z komentarzem). Praca: bloki czasu z kategorią —
   Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok. Organizacja
@@ -108,6 +108,12 @@ logowania.
   (`XLSX_SPAN_COLS`): stare B–G oraz dodatkowe U–AD za kolumną „Uwagi", żeby
   stary układ i stare pliki dalej działały; formuła w H sumuje wszystkie.
 - Światełko statusu połączenia z Arkuszem (ping przy starcie).
+- Wyszukiwarka haseł (v1.4, przycisk 🔍 na pasku ikon): szuka w opisach bloków i komentarzach urlopu; zakres
+  „Ten miesiąc / Ostatnie 2 / Ostatnie 3 / Cała historia” liczony od DZISIEJSZEJ daty (domyślnie cała
+  historia, wybór pamiętany per konto); bez rozróżniania wielkości liter i polskich znaków, wszystkie słowa w
+  jednym opisie; szuka serwer (`search`), więc ukryte miesiące nie wchodzą do wyników. Wynik → skok do dnia
+  (widok miesiąca, dzień otwarty, pasujący blok rozwinięty i podświetlony), pasek „‹ n/N ›” jak „Znajdź dalej”
+  w Wordzie, „Lista” wraca do wyników. Bez filtra kategorii (Szef odmówił 21.09.2026).
 
 ## Otwarte tematy
 

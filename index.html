@@ -255,6 +255,36 @@
   .ad-note{ color:var(--ink-dim); text-align:center; padding:24px 0; font-size:14px; }
   .ad-off{ margin:14px 0; } .ad-off summary{ color:var(--ink-dim); font-size:13px; padding:6px 0; }
   #adBackupLink{ margin-top:8px; }
+
+  /* ===== v1.4: wyszukiwarka haseł ===== */
+  .spage{ display:none; position:fixed; inset:0; z-index:90; background:var(--bg); overflow:auto; overscroll-behavior:contain; }
+  .spage > *{ max-width:720px; margin-left:auto; margin-right:auto; }
+  .sp-top{ position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:8px; padding:10px 12px; background:#151c22; border-bottom:1px solid var(--line); }
+  .sp-back{ background:none; border:none; color:var(--ink-dim); font-size:14px; padding:8px 4px; }
+  .sp-in{ flex:1; min-width:0; height:44px; font-size:16px; padding:0 12px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; }
+  .sp-chips{ display:flex; gap:6px; padding:10px 12px; flex-wrap:wrap; }
+  .sp-chip{ font-size:12.5px; padding:8px 12px; border-radius:99px; background:var(--panel2); color:var(--ink-dim); border:1px solid var(--line); }
+  .sp-chip.on{ background:var(--amber); color:#20140a; border-color:var(--amber); font-weight:700; }
+  .sp-sum{ padding:2px 16px 8px; color:var(--ink-dim); font-size:12px; min-height:16px; }
+  .sp-note{ display:none; margin:0 12px 6px; padding:8px 10px; border:1px dashed var(--line); border-radius:8px; color:var(--ink-dim); font-size:12px; }
+  .sp-mh{ padding:10px 16px 4px; font-size:12px; color:var(--blue); font-weight:700; text-transform:capitalize; letter-spacing:.02em; }
+  .sp-hit{ display:block; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line); padding:11px 16px; color:var(--ink); }
+  .sp-hit:active{ background:var(--panel); }
+  .sp-hrow{ display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+  .sp-hd{ font-weight:700; font-size:13px; }
+  .sp-tag{ font-size:11px; font-weight:400; padding:1px 7px; border-radius:99px; border:1px solid var(--line); color:var(--ink-dim); margin-left:4px; }
+  .sp-tm{ font-size:11.5px; color:var(--ink-dim); white-space:nowrap; }
+  .sp-snip{ font-size:13.5px; line-height:1.45; margin-top:4px; color:#cfd8de; }
+  .sp-snip mark{ background:rgba(232,163,61,.35); color:#ffd68a; border-radius:3px; padding:0 1px; }
+  .sp-empty{ text-align:center; color:var(--ink-dim); padding:40px 24px; font-size:14px; line-height:1.55; }
+  .sp-empty.err{ color:var(--red); } .sp-dim{ font-size:12px; color:var(--ink-dim); }
+  #findBar{ display:none; position:fixed; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom, 0px)); z-index:60; align-items:center; gap:6px; background:#1f2a32; border:1px solid var(--amber); border-radius:12px; padding:8px; box-shadow:0 6px 18px rgba(0,0,0,.45); }
+  body.adminmode #findBar{ display:none !important; }
+  #findBar .fb-mid{ flex:1; text-align:center; font-size:13px; min-width:0; }
+  #findBar .fb-mid small{ display:block; color:var(--ink-dim); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #findBar button{ background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:9px 12px; font-size:14px; }
+  #findBar button.fb-list{ background:var(--amber); color:#20140a; border-color:var(--amber); font-weight:700; font-size:13px; }
+  .block.find-hit, .urlop-komentarz.find-hit{ outline:2px solid var(--amber); outline-offset:1px; background:rgba(232,163,61,.10); }
 </style>
 </head>
 <body>
@@ -290,11 +320,30 @@
   </form>
 </div>
 
+<div class="spage" id="searchPage">
+  <form class="sp-top" id="spForm" role="search">
+    <button type="button" class="sp-back" id="spBack">‹ Wróć</button>
+    <input class="sp-in" id="spQ" type="search" enterkeyhint="search" placeholder="Szukaj w opisach…" autocomplete="off" autocapitalize="off" spellcheck="false">
+  </form>
+  <div class="sp-chips" id="spChips"></div>
+  <div class="sp-sum" id="spSum"></div>
+  <div class="sp-note" id="spNote"></div>
+  <div id="spRes"></div>
+</div>
+
+<div id="findBar">
+  <button type="button" id="fbPrev" aria-label="Poprzedni wynik">‹</button>
+  <div class="fb-mid"><span id="fbPos">—</span><small id="fbQ"></small></div>
+  <button type="button" id="fbNext" aria-label="Następny wynik">›</button>
+  <button type="button" class="fb-list" id="fbList">Lista</button>
+  <button type="button" id="fbClose" aria-label="Zamknij wyszukiwanie">✕</button>
+</div>
+
 <header>
   <button class="userchip" id="userChip" style="display:none">—</button>
   <div class="usermenu" id="userMenu"><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
-  <h1>Karta godzin <span class="vertag">v1.3</span></h1>
-  <div class="who"><span id="whoName">—</span> · <span class="buildtag">19.09.2026 15:58</span></div>
+  <h1>Karta godzin <span class="vertag">v1.4</span></h1>
+  <div class="who"><span id="whoName">—</span> · <span class="buildtag">21.09.2026 07:04</span></div>
   <div class="rolesw" id="roleSw" style="display:none"><button id="swKarta" class="active">Karta</button><button id="swAdmin">Admin</button></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
@@ -319,6 +368,7 @@
       <input type="file" id="importFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
     </label>
     <a class="icobtn green" id="btnExport" title="Eksport .xlsx" href="#">↑<span class="xlstag" id="btnExportTag">xlsx</span></a>
+    <button class="icobtn" id="btnSearch" type="button" title="Szukaj w opisach" aria-label="Szukaj w opisach">🔍</button>
   </div>
 
   <div class="summarybar" id="viewDays">
@@ -1876,6 +1926,186 @@ async function startApp(){
   refreshYearlyUrlop();
   checkConnection();
 }
+// ===== Wyszukiwarka haseł (v1.4) =====
+// Szukanie robi serwer (action 'search'): opisy wpisów i komentarze urlopu, bez rozróżniania wielkości
+// liter i polskich znaków, wszystkie słowa w jednym opisie. Serwer pomija miesiące ukryte przez admina.
+const SEARCH_RANGES = [[1,'Ten miesiąc'],[2,'Ostatnie 2'],[3,'Ostatnie 3'],[0,'Cała historia']];
+const findState = {q:'', months:0, hits:[], idx:0, active:false, seq:0, timer:null, total:0};
+
+function normText(s){ return String(s||'').toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function searchWords(q){ return normText(q.trim()).split(/\s+/).filter(Boolean); }
+function markHtml(text, marks){
+  const spans = (marks||[]).slice().sort((a,b)=>a[0]-b[0]);
+  let out = '', pos = 0;
+  spans.forEach(sp=>{
+    if(sp[0] < pos) return;
+    out += escapeHtml(text.slice(pos, sp[0])) + '<mark>' + escapeHtml(text.slice(sp[0], sp[0]+sp[1])) + '</mark>';
+    pos = sp[0] + sp[1];
+  });
+  return out + escapeHtml(text.slice(pos));
+}
+
+function openSearchPage(){
+  try{
+    const v = localStorage.getItem(lsKey('kg_search_range'));
+    if(!findState.rangeTouched && v !== null && [0,1,2,3].includes(Number(v))) findState.months = Number(v);
+  }catch(e){}
+  $id('searchPage').style.display = 'block';
+  $id('userMenu').classList.remove('open');
+  renderSearchChips();
+  if(!$id('spQ').value) renderSearchResults();
+  setTimeout(()=>{ try{ $id('spQ').focus(); }catch(e){} }, 60);
+}
+function closeSearchPage(){ $id('searchPage').style.display = 'none'; }
+
+function renderSearchChips(){
+  $id('spChips').innerHTML = SEARCH_RANGES.map(r=>`<button type="button" class="sp-chip${r[0]===findState.months?' on':''}" data-m="${r[0]}">${r[1]}</button>`).join('');
+}
+
+function scheduleSearch(now){
+  clearTimeout(findState.timer);
+  findState.timer = setTimeout(runSearch, now ? 0 : 450);
+}
+
+async function runSearch(){
+  const q = $id('spQ').value.trim();
+  const words = searchWords(q);
+  findState.q = q;
+  if(!words.length || words.join(' ').length < 2){
+    findState.hits = []; findState.total = 0;
+    renderSearchResults('Wpisz co najmniej 2 litery.');
+    return;
+  }
+  const seq = ++findState.seq;
+  $id('spSum').textContent = 'Szukam…';
+  let out;
+  try{ out = await api('search', {q: q, months: findState.months}); }
+  catch(e){
+    if(seq === findState.seq) renderSearchResults('Wyszukiwanie wymaga połączenia z serwerem. Spróbuj ponownie.', true);
+    return;
+  }
+  if(seq !== findState.seq) return;                       // nowsze zapytanie już poszło
+  if(!out || !out.ok){ renderSearchResults('Nie udało się wyszukać. Spróbuj ponownie.', true); return; }
+  findState.hits = out.hits; findState.total = out.total;
+  renderSearchResults(null, false, out);
+}
+
+function hitDateLabel(h){
+  const wd = DAY_NAMES[new Date(h.y, h.m-1, h.d).getDay()];
+  const yr = h.y !== new Date().getFullYear() ? '.' + h.y : '';
+  return `${wd} ${String(h.d).padStart(2,'0')}.${String(h.m).padStart(2,'0')}${yr}`;
+}
+
+function renderSearchResults(msg, isErr, out){
+  const res = $id('spRes'), sum = $id('spSum'), note = $id('spNote');
+  note.style.display = 'none';
+  if(msg !== undefined && msg !== null || !out){
+    sum.textContent = '';
+    res.innerHTML = `<div class="sp-empty${isErr?' err':''}">${escapeHtml(msg || 'Wpisz hasło (od 2 liter), np. nazwę obiektu albo rzecz, którą robiłeś.')}<br><span class="sp-dim">Szukam w opisach wpisów i komentarzach urlopu.</span></div>`;
+    return;
+  }
+  if(!out.hits.length){
+    sum.textContent = '0 wyników';
+    res.innerHTML = '<div class="sp-empty">Nic nie znaleziono w tym zakresie.<br><span class="sp-dim">Spróbuj „Cała historia” albo krótszego słowa (np. „zabk”).</span></div>';
+  } else {
+    const months = new Set(out.hits.map(h=>h.y+'-'+h.m)).size;
+    const n = out.total;
+    sum.textContent = `${n} ${n===1?'wynik':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'wyniki':'wyników')} w ${months} mies.`;
+    let html = '', last = '';
+    out.hits.forEach((h,i)=>{
+      const key = h.y + '-' + h.m;
+      if(key !== last){ html += `<div class="sp-mh">${MONTH_NAMES[h.m-1]} ${h.y}</div>`; last = key; }
+      const time = h.start ? `${h.start}–${h.end}` : 'cały dzień';
+      const kindTxt = h.kind === 'urlop' ? 'Urlop' : (KIND_SHORT[h.kind] || '');
+      html += `<button type="button" class="sp-hit" data-i="${i}"><div class="sp-hrow"><span class="sp-hd">${hitDateLabel(h)} ${kindTxt?`<span class="sp-tag">${kindTxt}</span>`:''}</span><span class="sp-tm">${time}</span></div><div class="sp-snip">${markHtml(h.text, h.marks)}</div></button>`;
+    });
+    res.innerHTML = html;
+  }
+  const notes = [];
+  if(out.limited) notes.push('Szukasz tylko w miesiącach, do których masz dostęp.');
+  if(out.truncated) notes.push(`Pokazano ${out.hits.length} z ${out.total} wyników — zawęź hasło lub zakres.`);
+  if(notes.length){ note.textContent = notes.join(' '); note.style.display = 'block'; }
+}
+
+// ---------- skok do wyniku ----------
+function findBlockIndex(day, hit, words){
+  const blocks = day.blocks || [];
+  let idx = blocks.findIndex(b => (b.start||'') === hit.start && (b.end||'') === hit.end && words.every(w => normText(b.komentarz).includes(w)));
+  if(idx < 0) idx = blocks.findIndex(b => words.every(w => normText(b.komentarz).includes(w)));
+  return idx;
+}
+
+async function goToHit(i){
+  const hits = findState.hits;
+  if(!hits.length) return;
+  i = (i + hits.length) % hits.length;
+  findState.idx = i;
+  findState.active = true;
+  const h = hits[i];
+  closeSearchPage();
+  if(appMode === 'admin') setMode('karta');
+  switchTab('days');
+  // widok miesiąca, żeby dzień był na liście
+  viewMode = 'miesiac';
+  document.querySelectorAll('.viewmode-switch button').forEach(b=>b.classList.toggle('active', b.dataset.vm === 'miesiac'));
+  refDate = new Date(h.y, h.m-1, h.d);
+  await syncMonthWithRef();
+  if(monthHidden) return;
+  openDay = h.d;
+  render();
+  const day = monthData[h.d-1];
+  const words = searchWords(findState.q);
+  let target = null;
+  if(day && day.dayType === 'urlop'){
+    target = document.querySelector(`#body-${h.d} .urlop-komentarz`);
+  } else if(day){
+    const bi = findBlockIndex(day, h, words);
+    if(bi >= 0){
+      blockUI.day = h.d;
+      if(blockUI.open.length !== day.blocks.length) blockUI.open = day.blocks.map(()=>false);
+      blockUI.open[bi] = true;
+      renderBody(h.d, true);
+      target = document.querySelector(`#body-${h.d} .block[data-block="${bi}"]`);
+    }
+  }
+  if(target) target.classList.add('find-hit');
+  const row = document.querySelector(`.day[data-day="${h.d}"]`);
+  if(row){
+    const headH = (document.querySelector('header') || {offsetHeight:0}).offsetHeight;
+    window.scrollTo({top: Math.max(0, row.getBoundingClientRect().top + window.scrollY - headH - 6), behavior: 'smooth'});
+  }
+  updateFindBar();
+}
+
+function updateFindBar(){
+  const bar = $id('findBar');
+  if(!findState.active || !findState.hits.length){ bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  $id('fbPos').textContent = `${findState.idx + 1} / ${findState.hits.length}`;
+  $id('fbQ').textContent = '„' + findState.q + '”';
+}
+
+$id('btnSearch').addEventListener('click', openSearchPage);
+$id('spBack').addEventListener('click', ()=>{ closeSearchPage(); });
+$id('spQ').addEventListener('input', ()=>scheduleSearch(false));
+$id('spForm').addEventListener('submit', (e)=>{ e.preventDefault(); scheduleSearch(true); try{ $id('spQ').blur(); }catch(_){} });
+$id('spChips').addEventListener('click', (e)=>{
+  const b = e.target.closest('.sp-chip'); if(!b) return;
+  findState.months = Number(b.dataset.m);
+  findState.rangeTouched = true;
+  try{ localStorage.setItem(lsKey('kg_search_range'), String(findState.months)); }catch(_){}
+  renderSearchChips();
+  if(searchWords($id('spQ').value).length) scheduleSearch(true);
+});
+$id('spRes').addEventListener('click', (e)=>{
+  const b = e.target.closest('.sp-hit'); if(!b) return;
+  goToHit(Number(b.dataset.i));
+});
+$id('fbPrev').addEventListener('click', ()=>goToHit(findState.idx - 1));
+$id('fbNext').addEventListener('click', ()=>goToHit(findState.idx + 1));
+$id('fbList').addEventListener('click', openSearchPage);
+$id('fbClose').addEventListener('click', ()=>{ findState.active = false; updateFindBar(); document.querySelectorAll('.find-hit').forEach(x=>x.classList.remove('find-hit')); });
+
 startApp();
 </script>
 </body>
