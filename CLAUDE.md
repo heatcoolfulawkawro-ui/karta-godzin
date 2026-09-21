@@ -67,7 +67,7 @@ logowania.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
   (nadgodziny/niedobór), niebieski = wartości referencyjne.
 
-## Funkcje (stan: 21.09.2026, v1.4 — patrz też punkt KONTA w Otwartych tematach)
+## Funkcje (stan: 21.09.2026, v1.4.1 — patrz też punkt KONTA w Otwartych tematach)
 
 - Dzień = Praca albo Urlop (z komentarzem). Praca: bloki czasu z kategorią —
   Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok. Organizacja
@@ -163,6 +163,11 @@ logowania.
   wymusza eksport przez Dysk); admin eksportuje/importuje w imieniu serwisanta (plik z jego skrótem).
   Wyłączenie konta = brak logowania, sesje kasowane, dane i PIN zostają; panel chowa je w „Wyłączeni”.
   Kopia na Dysku: `admin.backupDrive` zapisuje PRYWATNY plik w folderze „KG-kopie” (link do otwarcia w Dysku).
+  ZAPOMNIANY PIN ADMINA: (1) zalogowany admin ustawia nowy PIN w panelu Admin → karta „Twój PIN” (bez starego
+  PIN-u; nowy PIN nie jest odwracalnie zapisany); menu „Zmień PIN” wymaga starego. (2) Gdy nie ma żadnej sesji:
+  właściciel skryptu uruchamia RĘCZNIE w edytorze Apps Script funkcję `resetAdminPin` (losowy PIN dla PF,
+  zdejmuje blokadę, kończy sesje; PIN tylko w dzienniku wykonywania edytora; nieosiągalna z appki) — potem
+  zmienić PIN. Nie ma innej drogi (celowo).
   Konta: PF (admin), PS = Piotr S (testowy; PIN reset przez admina), AB nie istnieje na produkcji (tylko w
   sandboxie). Testy: atrapa Apps Script (116 sprawdzeń backendu) + sandbox `sandbox-auth.js` (prawdziwy Kod.gs
   na atrapie Arkusza + appka; `node tools/sandbox-auth.js index.html Kod.gs`, fikcyjne PIN-y 000111 (PF) i 000222 (PS)). PIN-ów NIE zapisujemy w repo ani w CLAUDE.md.

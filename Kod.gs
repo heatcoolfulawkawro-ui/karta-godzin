@@ -282,7 +282,7 @@ function adminSetPin_(b) {
   const u = findUser_(validId_(b.id));
   const pin = validPin_(b.pin);
   if (!u || !pin) return fail_('bad');
-  setPin_(u, pin, true);
+  setPin_(u, pin, u.role !== 'admin');   // PIN admina nie jest odwracalny (nikt go nie odczyta)
   return { ok: true };
 }
 

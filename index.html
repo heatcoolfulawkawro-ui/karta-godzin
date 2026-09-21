@@ -342,8 +342,8 @@
 <header>
   <button class="userchip" id="userChip" style="display:none">—</button>
   <div class="usermenu" id="userMenu"><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
-  <h1>Karta godzin <span class="vertag">v1.4</span></h1>
-  <div class="who"><span id="whoName">—</span> · <span class="buildtag">21.09.2026 07:04</span></div>
+  <h1>Karta godzin <span class="vertag">v1.4.1</span></h1>
+  <div class="who"><span id="whoName">—</span> · <span class="buildtag">21.09.2026 07:25</span></div>
   <div class="rolesw" id="roleSw" style="display:none"><button id="swKarta" class="active">Karta</button><button id="swAdmin">Admin</button></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
@@ -1792,7 +1792,10 @@ async function renderAdmin(){
       <div class="ad-row2"><div><div class="ad-lab">Login (skrót, litery)</div><input class="ad-in" id="adNewId" maxlength="6" autocapitalize="characters" placeholder="JK"></div>
       <div><div class="ad-lab">PIN startowy</div><input class="ad-in" id="adNewPin" inputmode="numeric" maxlength="6" placeholder="6 cyfr"></div></div>
       <button class="ad-btn primary" data-act="create">Utwórz konto</button></div>
-    ${me?`<div class="ad-card"><div class="ad-row"><div><b>${escapeHtml(me.name)}</b> <span class="ad-pill">admin</span><div class="ad-dim">login ${escapeHtml(me.id)} · własny PIN zmienisz w menu konta</div></div><span class="ad-pill ok">aktywny</span></div></div>`:''}
+    ${me?`<div class="ad-card" data-id="${escapeAttr(me.id)}"><div class="ad-row"><div><b>${escapeHtml(me.name)}</b> <span class="ad-pill">admin</span><div class="ad-dim">login ${escapeHtml(me.id)}</div></div><span class="ad-pill ok">aktywny</span></div>
+      <div class="ad-lab">Twój PIN</div><div class="ad-dim">Nie pamiętasz PIN-u albo chcesz go zmienić? Wpisz nowy — nikt go nie zobaczy. Zostaniesz zalogowany od razu, a na innych urządzeniach zalogujesz się ponownie.</div>
+      <div class="ad-row2"><input class="ad-in f-np" type="password" inputmode="numeric" maxlength="6" placeholder="nowy PIN (6 cyfr)" autocomplete="new-password"><input class="ad-in f-np2" type="password" inputmode="numeric" maxlength="6" placeholder="powtórz PIN" autocomplete="new-password"></div>
+      <div class="ad-row2"><button class="ad-btn primary" data-act="setownpin">Ustaw mój PIN</button></div></div>`:''}
     ${active.map(adminUserCard).join('') || '<div class="ad-note">Brak serwisantów. Dodaj pierwszego przyciskiem „＋ Dodaj”.</div>'}
     ${off.length?`<details class="ad-off"><summary>Wyłączeni (${off.length})</summary>${off.map(u=>`<div class="ad-card" data-id="${escapeAttr(u.id)}"><div class="ad-row"><div><b>${escapeHtml(u.name)}</b><div class="ad-dim">login ${escapeHtml(u.id)} · dane i PIN zostają</div></div><button class="ad-btn" data-act="on">Włącz konto</button></div></div>`).join('')}</details>`:''}
     <div class="ad-card"><b>Kopia zapasowa</b><div class="ad-dim" style="margin:4px 0 8px">Wszystkie konta i dane w jednym pliku .json na Twoim Dysku Google (prywatny, bez PIN-ów). Otwórz go w aplikacji Dysk i zapisz na telefonie.</div>
@@ -1832,6 +1835,19 @@ $id('adminView').addEventListener('click', async (e)=>{
     adminToast('Zapisuję kopię na Dysku…');
     const out = await adminCall('admin.backupDrive', {}, 'Kopia zapisana na Dysku Google.');
     if(out) $id('adBackupLink').innerHTML = `<a class="ad-btn primary" href="${escapeAttr(out.url)}" target="_blank" rel="noopener">Otwórz ${escapeHtml(out.name)}</a>`;
+    return;
+  }
+  if(act === 'setownpin'){
+    const card = el.closest('.ad-card');
+    const p1 = card.querySelector('.f-np').value.trim(), p2 = card.querySelector('.f-np2').value.trim();
+    if(!/^\d{6}$/.test(p1)){ adminToast('PIN to dokładnie 6 cyfr.', true); return; }
+    if(p1 !== p2){ adminToast('PIN i powtórzenie się różnią.', true); return; }
+    const uid = userId();
+    if(await adminCall('admin.setPin', {id: uid, pin: p1}, 'Twój PIN został zmieniony.')){
+      // Serwer po zmianie PIN-u kończy sesje — logujemy się od razu nowym PIN-em.
+      try{ const lg = await api('login', {user: uid, pin: p1}); if(lg && lg.ok) saveAuth({token: lg.token, user: lg.user, expires: lg.expires}); }catch(e){}
+      await renderAdmin();
+    }
     return;
   }
   const u = cardUser(el);
