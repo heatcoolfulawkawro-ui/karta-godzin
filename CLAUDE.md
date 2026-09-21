@@ -40,6 +40,11 @@ logowania.
 
 ## Zasady przy zmianach
 
+- NIE nazywaj klas CSS „reklamowo” (`ad-…`, `ads`, `banner`, `sponsor`, `promo`…): blokery reklam (filtry kosmetyczne) na
+  komputerze Szefa ukrywały `.ad-head/.ad-card/.ad-btn/.ad-row/.ad-note` i panel Admin był pusty (19–21.09.2026,
+  naprawione w v1.4.2: prefiks `pnl-`). Na telefonie bloker nie działał, więc bug wyszedł dopiero na komputerze.
+  Nowe klasy sprawdzaj w prawdziwym Chrome Szefa: utwórz `div` z klasą i sprawdź `getComputedStyle(...).display`.
+
 - Przed widoczną zmianą UI (nowy ekran/panel) pokaż makietę do akceptacji.
 - Po każdej zmianie JS sprawdź składnię (wytnij `<script>` do pliku i
   `node --check`), zanim wypchniesz.
@@ -67,7 +72,7 @@ logowania.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
   (nadgodziny/niedobór), niebieski = wartości referencyjne.
 
-## Funkcje (stan: 21.09.2026, v1.4.1 — patrz też punkt KONTA w Otwartych tematach)
+## Funkcje (stan: 21.09.2026, v1.4.2 — patrz też punkt KONTA w Otwartych tematach)
 
 - Dzień = Praca albo Urlop (z komentarzem). Praca: bloki czasu z kategorią —
   Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok. Organizacja
