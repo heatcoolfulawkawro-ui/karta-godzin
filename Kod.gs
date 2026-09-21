@@ -118,6 +118,7 @@ function dispatch_(b) {
       if (user.role !== 'admin' && !user.canExport) return fail_('forbidden');
       return exportXlsx_(b, user);
     case 'urlopYear': return urlopYear_(user, b);
+    case 'getMonths': return getMonths_(user, b);
     case 'search': return search_(user, b);
     case 'changePin': return changePin_(user, b);
   }
@@ -418,6 +419,25 @@ function search_(user, b) {
   return { ok: true, hits: hits.slice(0, SEARCH_MAX_HITS), total: hits.length, truncated: truncated, scanned: scanned, limited: user.role !== 'admin' && user.visibleMonths > 0 };
 }
 
+// Kilka miesięcy naraz (do eksportu wybranego zakresu). Miesiące ukryte przez admina nie są zwracane
+// (status hidden), pozostałe: value = zapisany JSON miesiąca albo '' gdy brak danych.
+function getMonths_(user, b) {
+  const keys = Array.isArray(b.keys) ? b.keys.slice(0, 36) : null;
+  if (!keys || !keys.length) return fail_('bad');
+  const rows = getDataSheet().getDataRange().getValues();
+  const byKey = {};
+  for (let i = 0; i < rows.length; i++) byKey[rows[i][0]] = rows[i][1];
+  const months = {};
+  for (let i = 0; i < keys.length; i++) {
+    const key = validKey_(keys[i]);
+    if (!key || !/^karta_godzin_v3_\d{4}_\d{1,2}$/.test(key)) return fail_('bad');
+    if (isHidden_(user, key)) { months[key] = { error: 'hidden' }; continue; }
+    const v = byKey[storageKey_(user, key)];
+    months[key] = { value: v === undefined ? '' : String(v) };
+  }
+  return { ok: true, months: months };
+}
+
 // Urlopy z całego roku, niezależnie od widoczności miesięcy: liczniki (counts) zawsze
 // z pełnych danych, a lista dni (items) tylko z miesięcy widocznych dla użytkownika.
 function urlopYear_(user, b) {
@@ -679,7 +699,7 @@ const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.s
 function exportXlsx_(body, user) {
   const name = String(body.name || '');
   const b64 = String(body.b64 || '');
-  if (!/^\d{1,2}_\d{2}_[A-Za-z]{1,6}\.xlsx$/.test(name)) return fail_('bad name');
+  if (!/^[0-9+.\-]{1,40}_\d{2}_[A-Za-z]{1,6}\.xlsx$/.test(name)) return fail_('bad name');
   const owner = user && user.role === 'admin' && body.forId ? validId_(body.forId) : (user && user.id);
   if (user && (!owner || name.slice(-(owner.length + 6)).toUpperCase() !== '_' + owner + '.XLSX')) return fail_('bad name');
   if (!b64 || b64.length > EXPORT_MAX_B64 || b64.indexOf('UEsDB') !== 0) return fail_('bad file');
