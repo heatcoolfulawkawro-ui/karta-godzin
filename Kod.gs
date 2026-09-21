@@ -118,6 +118,7 @@ function dispatch_(b) {
       if (user.role !== 'admin' && !user.canExport) return fail_('forbidden');
       return exportXlsx_(b, user);
     case 'urlopYear': return urlopYear_(user, b);
+    case 'search': return search_(user, b);
     case 'changePin': return changePin_(user, b);
   }
   if (action.indexOf('admin.') !== 0) return fail_('bad');
@@ -358,6 +359,63 @@ function audit_(actor, action, b) {
   ['key', 'months', 'active', 'canExport', 'canImport', 'role'].forEach(function (f) { if (b[f] !== undefined) detail[f] = b[f]; });
   if (b.name !== undefined && action === 'admin.createUser') detail.name = String(b.name).slice(0, 60);
   getSheet_(AUDIT_SHEET, AUDIT_HEADERS).appendRow([Date.now(), actor, action, String(b.id || ''), JSON.stringify(detail)]);
+}
+
+// Wyszukiwarka haseł w opisach wpisów i komentarzach urlopu. Działa po stronie serwera na
+// danych TEGO konta i pomija miesiące ukryte przez admina (nic z nich nie wycieka we fragmentach).
+// Zakres: months = 0 (cała dostępna historia) albo N = ostatnie N miesięcy z bieżącym. Wszystkie słowa
+// zapytania muszą wystąpić w tym samym opisie; wielkość liter i polskie znaki są pomijane.
+const SEARCH_MAX_HITS = 300;
+
+function norm_(s) {
+  return String(s || '').toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function search_(user, b) {
+  const words = norm_(String(b.q || '').trim()).split(/\s+/).filter(Boolean).slice(0, 5);
+  if (!words.length || words.join(' ').length < 2 || String(b.q).length > 60) return fail_('bad');
+  let months = Number(b.months);
+  if (!Number.isInteger(months) || months < 0 || months > 240) months = 0;
+  const prefix = user.id === LEGACY_OWNER ? '' : user.id + '::';
+  const re = /^karta_godzin_v3_(\d{4})_(\d{1,2})$/;
+  const rows = getDataSheet().getDataRange().getValues();
+  const hits = [];
+  let scanned = 0;
+  for (let r = 0; r < rows.length; r++) {
+    const k = String(rows[r][0]);
+    if (prefix ? k.indexOf(prefix) !== 0 : k.indexOf('::') >= 0) continue;
+    const m = re.exec(prefix ? k.slice(prefix.length) : k);
+    if (!m) continue;
+    const key = 'karta_godzin_v3_' + m[1] + '_' + m[2];
+    if (isHidden_(user, key)) continue;
+    if (months > 0 && monthsAgo_(key) > months - 1) continue;
+    let arr;
+    try { arr = JSON.parse(rows[r][1]); } catch (e) { continue; }
+    if (!Array.isArray(arr)) continue;
+    scanned++;
+    arr.forEach(function (d, i) {
+      if (!d) return;
+      const items = d.dayType === 'urlop'
+        ? [{ text: d.urlopKomentarz, kind: 'urlop', start: '', end: '' }]
+        : (d.blocks || []).map(function (bl) { return { text: bl.komentarz, kind: bl.kind || '', start: bl.start || '', end: bl.end || '' }; });
+      items.forEach(function (it) {
+        const text = String(it.text || '');
+        const n = norm_(text);
+        if (!text || !words.every(function (w) { return n.indexOf(w) >= 0; })) return;
+        const at = n.indexOf(words[0]);
+        const from = Math.max(0, at - 40);
+        const snip = (from > 0 ? '…' : '') + text.slice(from, from + 140) + (from + 140 < text.length ? '…' : '');
+        const off = from > 0 ? 1 : 0;
+        const sn = norm_(snip);
+        const marks = [];
+        words.forEach(function (w) { let p = sn.indexOf(w); while (p >= 0) { marks.push([p, w.length]); p = sn.indexOf(w, p + w.length); } });
+        hits.push({ y: Number(m[1]), m: Number(m[2]), d: i + 1, kind: it.kind, start: it.start, end: it.end, text: snip, marks: marks });
+      });
+    });
+  }
+  hits.sort(function (a, b2) { return (b2.y * 10000 + b2.m * 100 + b2.d) - (a.y * 10000 + a.m * 100 + a.d); });
+  const truncated = hits.length > SEARCH_MAX_HITS;
+  return { ok: true, hits: hits.slice(0, SEARCH_MAX_HITS), total: hits.length, truncated: truncated, scanned: scanned, limited: user.role !== 'admin' && user.visibleMonths > 0 };
 }
 
 // Urlopy z całego roku, niezależnie od widoczności miesięcy: liczniki (counts) zawsze
