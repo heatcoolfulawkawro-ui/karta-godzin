@@ -72,7 +72,7 @@ logowania.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
   (nadgodziny/niedobór), niebieski = wartości referencyjne.
 
-## Funkcje (stan: 21.09.2026, v1.4.2 — patrz też punkt KONTA w Otwartych tematach)
+## Funkcje (stan: 21.09.2026, v1.5 — patrz też punkt KONTA w Otwartych tematach)
 
 - Dzień = Praca albo Urlop (z komentarzem). Praca: bloki czasu z kategorią —
   Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok. Organizacja
@@ -113,6 +113,14 @@ logowania.
   (`XLSX_SPAN_COLS`): stare B–G oraz dodatkowe U–AD za kolumną „Uwagi", żeby
   stary układ i stare pliki dalej działały; formuła w H sumuje wszystkie.
 - Światełko statusu połączenia z Arkuszem (ping przy starcie).
+- Kopia całego roku (v1.5, niebieska ikona ↑ „rok” obok zielonego eksportu miesiąca; wymaga uprawnienia canExport):
+  jeden plik .xlsx z arkuszem na KAŻDY miesiąc wybranego roku (sty–gru, także puste i przyszłe), każdy w układzie
+  jak eksport miesiąca (`buildSheet`, `buildWorkbookMonths`); dane z jednego zapytania `getMonths`; miesiące
+  ukryte przed serwisantem są pomijane (komunikat). Nazwa `1-12_RR_SKRÓT.xlsx` (`monthsFileName`: zakres a-b,
+  miesiące nie po kolei a+b, przez granicę roku m.rr+m.rr — serwer akceptuje takie nazwy). Pobranie dwuetapowe:
+  iOS = link z Dysku (`uploadExport`), reszta = blob + atrybut download. Szef chciał tego jako „BACKUP” roku;
+  wybór dowolnych miesięcy odłożył (eksportuje miesiąc po miesiącu). Makieta wyboru miesięcy była opublikowana,
+  nie zbudowana. Ewentualny dodatek: arkusz „Lista wpisów” (jedna tabela pod analizę w czacie).
 - Wyszukiwarka haseł (v1.4, przycisk 🔍 na pasku ikon): szuka w opisach bloków i komentarzach urlopu; zakres
   „Ten miesiąc / Ostatnie 2 / Ostatnie 3 / Cała historia” liczony od DZISIEJSZEJ daty (domyślnie cała
   historia, wybór pamiętany per konto); bez rozróżniania wielkości liter i polskich znaków, wszystkie słowa w

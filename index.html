@@ -285,6 +285,12 @@
   #findBar button{ background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:9px 12px; font-size:14px; }
   #findBar button.fb-list{ background:var(--amber); color:#20140a; border-color:var(--amber); font-weight:700; font-size:13px; }
   .block.find-hit, .urlop-komentarz.find-hit{ outline:2px solid var(--amber); outline-offset:1px; background:rgba(232,163,61,.10); }
+  /* ===== v1.5: kopia całego roku ===== */
+  .icobtn.blue{ color:var(--blue); border-color:#2f4560; }
+  .icobtn.blue .xlstag{ color:var(--blue); }
+  .yr-sel{ width:100%; height:48px; font-size:16px; padding:0 12px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; }
+  .yr-info{ color:var(--ink-dim); font-size:13px; line-height:1.5; margin:12px 0 0; min-height:18px; }
+  .yr-link{ display:none; text-align:center; text-decoration:none; padding:14px; margin-top:12px; border-radius:10px; background:var(--blue); color:#0d1a24; font-weight:700; font-size:15px; overflow-wrap:anywhere; }
 </style>
 </head>
 <body>
@@ -320,6 +326,21 @@
   </form>
 </div>
 
+<div class="overlay" id="yearModal">
+  <div class="lg-box">
+    <div class="lg-title" style="font-size:18px">Kopia całego roku</div>
+    <div class="lg-sub" style="margin-bottom:14px">jeden plik Excela · arkusz na każdy miesiąc</div>
+    <label for="yrSel">Rok</label>
+    <select class="yr-sel" id="yrSel"></select>
+    <div class="yr-info" style="color:var(--ink-dim)">Styczeń–grudzień wybranego roku, także miesiące bez wpisów (np. do końca roku). Każdy arkusz ma ten sam układ co eksport jednego miesiąca.</div>
+    <div class="lg-err" id="yrErr"></div>
+    <button class="lg-btn" type="button" id="yrGo">Przygotuj plik</button>
+    <a class="yr-link" id="yrLink" href="#">↓ Pobierz</a>
+    <div class="yr-info" id="yrInfo"></div>
+    <button class="lg-btn ghost" type="button" id="yrClose">Zamknij</button>
+  </div>
+</div>
+
 <div class="spage" id="searchPage">
   <form class="sp-top" id="spForm" role="search">
     <button type="button" class="sp-back" id="spBack">‹ Wróć</button>
@@ -342,8 +363,8 @@
 <header>
   <button class="userchip" id="userChip" style="display:none">—</button>
   <div class="usermenu" id="userMenu"><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
-  <h1>Karta godzin <span class="vertag">v1.4.2</span></h1>
-  <div class="who"><span id="whoName">—</span> · <span class="buildtag">21.09.2026 10:53</span></div>
+  <h1>Karta godzin <span class="vertag">v1.5</span></h1>
+  <div class="who"><span id="whoName">—</span> · <span class="buildtag">21.09.2026 11:08</span></div>
   <div class="rolesw" id="roleSw" style="display:none"><button id="swKarta" class="active">Karta</button><button id="swAdmin">Admin</button></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
@@ -368,6 +389,7 @@
       <input type="file" id="importFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
     </label>
     <a class="icobtn green" id="btnExport" title="Eksport .xlsx" href="#">↑<span class="xlstag" id="btnExportTag">xlsx</span></a>
+    <button class="icobtn blue" id="btnExportYear" type="button" title="Kopia całego roku (.xlsx)" aria-label="Kopia całego roku"><span>↑</span><span class="xlstag">rok</span></button>
     <button class="icobtn" id="btnSearch" type="button" title="Szukaj w opisach" aria-label="Szukaj w opisach">🔍</button>
   </div>
 
@@ -1517,7 +1539,7 @@ function exportSpans(d){
   return spans.slice(0, XLSX_SPAN_COLS.length);
 }
 
-function buildWorkbook(forUser){
+function buildSheet(forUser){
   const ws = {}; const merges = [];
   const setCell = (addr, value, opts) => { ws[addr] = Object.assign({v:value}, opts||{}); };
 
@@ -1567,6 +1589,11 @@ function buildWorkbook(forUser){
   ws['!merges'] = merges.map(XLSX.utils.decode_range);
   ws['!cols'] = [{wch:6},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7}];
 
+  return ws;
+}
+
+function buildWorkbook(forUser){
+  const ws = buildSheet(forUser);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Arkusz1');
   const yy = String(curYear).slice(-2);
@@ -1702,6 +1729,7 @@ function applyUserUI(){
   $id('roleSw').style.display = isAdmin() ? '' : 'none';
   $id('btnImport').style.display = (u && u.canImport) ? '' : 'none';
   $id('btnExport').style.display = (u && u.canExport) ? '' : 'none';
+  $id('btnExportYear').style.display = (u && u.canExport) ? '' : 'none';
 }
 $id('userChip').addEventListener('click', (e)=>{ e.stopPropagation(); $id('userMenu').classList.toggle('open'); });
 document.addEventListener('click', ()=>$id('userMenu').classList.remove('open'));
@@ -2122,6 +2150,102 @@ $id('fbPrev').addEventListener('click', ()=>goToHit(findState.idx - 1));
 $id('fbNext').addEventListener('click', ()=>goToHit(findState.idx + 1));
 $id('fbList').addEventListener('click', openSearchPage);
 $id('fbClose').addEventListener('click', ()=>{ findState.active = false; updateFindBar(); document.querySelectorAll('.find-hit').forEach(x=>x.classList.remove('find-hit')); });
+
+// ===== Kopia całego roku (v1.5): jeden plik .xlsx, arkusz na każdy miesiąc, także puste =====
+function monthsFileName(list, id){
+  const yy = String(list[list.length-1].y).slice(-2);
+  let body;
+  if(list.length === 1) body = String(list[0].m);
+  else if(list.every(x=>x.y === list[0].y)){
+    const contig = list.every((x,i)=> i === 0 || x.m === list[i-1].m + 1);
+    body = contig ? `${list[0].m}-${list[list.length-1].m}` : list.map(x=>x.m).join('+');
+  } else body = list.map(x=>x.m + '.' + String(x.y).slice(-2)).join('+');
+  return `${body}_${yy}_${id}.xlsx`;
+}
+
+// Skoroszyt z wieloma miesiącami: każdy arkusz w tym samym układzie co eksport jednego miesiąca.
+function buildWorkbookMonths(entries, forUser){
+  const wb = XLSX.utils.book_new();
+  const saved = {d: monthData, y: curYear, m: curMonth};
+  try{
+    entries.forEach(en=>{
+      monthData = en.arr; monthData._meta = {normaOverride: null};
+      curYear = en.y; curMonth = en.m;
+      const name = MONTH_NAMES[en.m-1].charAt(0).toUpperCase() + MONTH_NAMES[en.m-1].slice(1) + ' ' + en.y;
+      XLSX.utils.book_append_sheet(wb, buildSheet(forUser), name);
+    });
+  } finally { monthData = saved.d; curYear = saved.y; curMonth = saved.m; }
+  return wb;
+}
+
+function openYearModal(){
+  const now = new Date().getFullYear();
+  $id('yrSel').innerHTML = [now, now-1, now-2].map(y=>`<option value="${y}">${y}</option>`).join('');
+  yearReset();
+  $id('yearModal').style.display = 'block';
+}
+function yearReset(){
+  $id('yrErr').textContent = '';
+  $id('yrInfo').textContent = '';
+  const link = $id('yrLink');
+  if(link.dataset.blob){ try{ URL.revokeObjectURL(link.dataset.blob); }catch(e){} link.dataset.blob = ''; }
+  link.style.display = 'none'; link.removeAttribute('href'); link.removeAttribute('download');
+  $id('yrGo').style.display = ''; $id('yrGo').disabled = false; $id('yrGo').textContent = 'Przygotuj plik';
+}
+
+async function prepareYearExport(){
+  const year = Number($id('yrSel').value);
+  const btn = $id('yrGo');
+  $id('yrErr').textContent = ''; $id('yrInfo').textContent = '';
+  btn.disabled = true; btn.textContent = 'Pobieram dane…';
+  try{
+    const keys = []; for(let m=1; m<=12; m++) keys.push(storageKey(year, m));
+    const out = await api('getMonths', {keys: keys});
+    if(!out || !out.ok){
+      if(!(out && out.error === 'auth')) $id('yrErr').textContent = 'Nie udało się pobrać danych z serwera. Spróbuj ponownie.';
+      btn.disabled = false; btn.textContent = 'Przygotuj plik'; return;
+    }
+    const entries = [], skipped = [];
+    let filled = 0;
+    for(let m=1; m<=12; m++){
+      const info = out.months[storageKey(year, m)] || {};
+      if(info.error === 'hidden'){ skipped.push(MONTH_NAMES[m-1]); continue; }
+      const n = daysInMonth(year, m);
+      let arr = null;
+      if(info.value && info.value.trim()){ try{ arr = migrateOld(JSON.parse(info.value), n); }catch(e){} }
+      if(!arr){                                       // brak w Arkuszu: może są dane zapisane tylko lokalnie (offline)
+        try{ const loc = localStorage.getItem(lsKey(storageKey(year, m))); if(loc) arr = migrateOld(JSON.parse(loc), n); }catch(e){}
+      }
+      if(arr) filled++;
+      entries.push({y: year, m: m, arr: arr || blankMonth(n)});
+    }
+    if(!entries.length){ $id('yrErr').textContent = 'Żaden miesiąc tego roku nie jest dla Ciebie dostępny.'; btn.disabled = false; btn.textContent = 'Przygotuj plik'; return; }
+    const wb = buildWorkbookMonths(entries);
+    const filename = monthsFileName(entries.map(e=>({y: e.y, m: e.m})), userId());
+    const link = $id('yrLink');
+    if(isIOS()){
+      link.href = await uploadExport(wb, filename);            // iOS: zwykły link do pobrania z Dysku
+      link.removeAttribute('download');
+    } else {
+      const bytes = XLSX.write(wb, {bookType: 'xlsx', type: 'array'});
+      const url = URL.createObjectURL(new Blob([bytes], {type: XLSX_MIME}));
+      link.href = url; link.dataset.blob = url; link.setAttribute('download', filename);
+    }
+    link.textContent = '↓ Pobierz ' + filename;
+    link.style.display = 'block'; btn.style.display = 'none';
+    let info = `Gotowe: ${entries.length} arkuszy (miesięcy), w tym ${filled} z wpisami. Dotknij przycisku poniżej, żeby zapisać plik.`;
+    if(skipped.length) info += ` Pominięto niedostępne miesiące: ${skipped.join(', ')}.`;
+    $id('yrInfo').textContent = info;
+  }catch(err){
+    $id('yrErr').textContent = /uprawnie/.test(String(err && err.message)) ? 'Nie masz uprawnienia do eksportu.' : 'Nie udało się przygotować pliku: ' + (err && err.message ? err.message : 'błąd') + '. Spróbuj ponownie.';
+    btn.disabled = false; btn.textContent = 'Przygotuj plik';
+  }
+}
+
+$id('btnExportYear').addEventListener('click', openYearModal);
+$id('yrSel').addEventListener('change', yearReset);
+$id('yrGo').addEventListener('click', prepareYearExport);
+$id('yrClose').addEventListener('click', ()=>{ yearReset(); $id('yearModal').style.display = 'none'; });
 
 startApp();
 </script>
