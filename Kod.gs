@@ -700,6 +700,22 @@ function jsonOut_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
+// AWARYJNE ODZYSKANIE DOSTĘPU (gdy admin zapomni PIN): uruchamiane RĘCZNIE w edytorze Apps Script
+// przez właściciela skryptu (Uruchom → resetAdminPin). Ustawia nowy losowy PIN dla konta admina
+// (LEGACY_OWNER), odblokowuje je, kończy jego sesje i wypisuje PIN w dzienniku wykonywania edytora.
+// Nie jest osiągalna z appki ani przez doGet/doPost. Po zalogowaniu zmień PIN w menu konta.
+function resetAdminPin() {
+  const u = findUser_(LEGACY_OWNER);
+  if (!u) throw new Error('Brak konta administratora ' + LEGACY_OWNER);
+  const pin = String(100000 + (parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 8), 16) % 900000));
+  setPin_(u, pin, false);
+  u.active = true;
+  saveUser_(u);
+  audit_('EDYTOR', 'resetAdminPin', { id: u.id });
+  console.log('Nowy PIN dla ' + u.id + ': ' + pin + ' — zaloguj się i zmień go w menu konta.');
+  return pin;
+}
+
 // Uruchamiana jednorazowo ręcznie w edytorze, żeby właściciel przyznał uprawnienie do Dysku.
 function authorizeDrive() {
   DriveApp.getRootFolder();
