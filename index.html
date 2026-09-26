@@ -56,6 +56,7 @@
   .statusdot{ width:12px; height:12px; border-radius:50%; background:var(--ink-dim); flex:0 0 12px; margin-right:2px; }
   .statusdot.ok{ background:var(--green); box-shadow:0 0 6px var(--green); }
   .statusdot.fail{ background:var(--red); box-shadow:0 0 6px var(--red); }
+  .statusdot.local{ background:var(--amber); box-shadow:0 0 6px var(--amber); }
   .cloudtag{ font-size:9.5px; color:var(--ink-dim); text-align:center; margin-top:4px; }
 
   .summarybar{ margin-top:8px; }
@@ -362,6 +363,7 @@
 
 <header>
   <div style="position:absolute;top:10px;right:12px;display:flex;align-items:center;gap:6px;">
+    <span class="statusdot" id="statusDot" title="Status połączenia z Arkuszem" style="cursor:pointer;"></span>
     <button id="btnHub" title="Rozdzielacz" style="display:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:14px;">🏠</button>
     <button class="userchip" id="userChip" style="display:none;position:static;">—</button>
   </div>
@@ -386,7 +388,6 @@
   </div>
 
   <div class="icontoolbar">
-    <span class="statusdot" id="statusDot" title="Status połączenia z Arkuszem"></span>
     <label class="icobtn green" id="btnImport" title="Importuj z .xlsx">
       ↓<span class="xlstag">xlsx</span>
       <input type="file" id="importFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
@@ -579,11 +580,13 @@ function saveMonth(){
   saveMonth._t = setTimeout(()=>tag.classList.remove('show'), 1200);
 }
 
-function setStatusDot(ok){
+function setStatusDot(state){
   const dot = document.getElementById('statusDot');
-  dot.classList.remove('ok','fail');
-  dot.classList.add(ok?'ok':'fail');
-  dot.title = ok ? 'Połączenie z Arkuszem: OK' : 'Brak połączenia z Arkuszem (offline / dane tylko lokalnie)';
+  dot.classList.remove('ok','fail','local');
+  dot.classList.add(state);
+  dot.title = state==='ok' ? 'Połączenie z Arkuszem: OK'
+    : state==='local' ? 'Brak zasięgu — dane tylko lokalnie, appka sama dogoni po powrocie sieci'
+    : 'Błąd połączenia z Arkuszem';
 }
 
 // Auto-check on load: harmless read of a key that (almost certainly) doesn't
@@ -591,12 +594,14 @@ function setStatusDot(ok){
 async function checkConnection(){
   try{
     const out = await api('me');
-    setStatusDot(!!(out && out.ok));
+    setStatusDot(out && out.ok ? 'ok' : 'fail');
   }catch(e){
-    setStatusDot(false);
+    setStatusDot('local');
   }
 }
 document.getElementById('statusDot').addEventListener('click', checkConnection);
+
+const pendingSyncKeys = new Set();
 
 async function cloudMirror(key, json){
   const tag = document.getElementById('savetag');
@@ -604,19 +609,31 @@ async function cloudMirror(key, json){
     const out = await api('set', {key: key, value: json});
     if(out && out.ok){
       tag.textContent = 'zapisano w Arkuszu';
-      setStatusDot(true);
+      setStatusDot('ok');
+      pendingSyncKeys.delete(key);
     } else if(out && out.error === 'hidden'){
       tag.textContent = 'miesiąc niedostępny — nie zapisano';
     } else {
       tag.textContent = 'zapisano lokalnie (nie zsynchronizowano)';
-      setStatusDot(false);
+      setStatusDot('fail');
+      pendingSyncKeys.add(key);
     }
   }catch(e){
     tag.textContent = 'zapisano lokalnie (offline)';
-    setStatusDot(false);
+    setStatusDot('local');
+    pendingSyncKeys.add(key);
     console.warn('zapis do Arkusza nieudany:', e);
   }
 }
+
+// Appka wraca online (np. serwisant wyjeżdża z terenu bez zasięgu) — sama
+// dogania zaległe miesiące, bez potrzeby dotykania ich ponownie ręcznie.
+window.addEventListener('online', () => {
+  pendingSyncKeys.forEach(key => {
+    const json = localStorage.getItem(lsKey(key));
+    if(json != null) cloudMirror(key, json);
+  });
+});
 
 function timeToMinutes(t){ if(!t) return 0; const [h,m]=t.split(':').map(Number); return h*60+m; }
 function fmtHM(mins){ const s = mins<0?'-':''; mins=Math.abs(Math.round(mins)); return `${s}${Math.floor(mins/60)}:${String(mins%60).padStart(2,'0')}`; }
