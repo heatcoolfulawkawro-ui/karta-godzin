@@ -21,6 +21,72 @@ const SETUP_KEY_SHA256 = 'eb51f1764184704daa527ded287062475859b31e55ca80607501c0
 // kontem Windows). Pozwala WYŁĄCZNIE pobrać pełny zrzut danych (akcja backup, tylko odczyt).
 const BACKUP_KEY_SHA256 = '405126d49a5b99b58eb12240ce34b3659ca96e12c3bfb3f454beceaa738b3adc';
 
+// ---------- Sync PIN-u konta PF z siostrzanymi appkami ----------
+// Tylko konto LEGACY_OWNER ('PF') jest zsynchronizowane z Paliwem/Wagą/Wydatkami —
+// PS i pozostali użytkownicy mają całkowicie osobne, niezależne PIN-y.
+// Żeby dołożyć kolejną appkę do rodziny: dopisz jej URL tutaj i do SIBLING_URLS
+// wszystkich pozostałych, potem zbootstrapuj w niej TEN SAM sekret.
+const SIBLING_URLS = [
+  'https://script.google.com/macros/s/AKfycbwp2qGgpobvHRCOurqA614AxnIA5ozdLlv_EsIr1Ve8t3vNp3Qur8ZfashMQpSZFuM/exec', // Paliwo PF
+  'https://script.google.com/macros/s/AKfycbz3-nc9P2jTv3pX2_aiP6Ne7A67QXtZHObP53BU3GNMIjgrThQSJtfaOCnBbGSGSRQI/exec', // Waga PF
+  'https://script.google.com/macros/s/AKfycby-n1t8ehXtz9sNEByK-dZbObSAs39RKOovANpGIefLbs2-spAlx1iwdFb9CUK5fVZH/exec' // Wydatki domowe
+];
+
+function bootstrapSyncSecret_(b) {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('SYNC_SECRET')) return fail_('exists');
+  const secret = String(b.secret || '');
+  if (secret.length < 20) return fail_('bad');
+  props.setProperty('SYNC_SECRET', secret);
+  return { ok: true };
+}
+
+// Odbiór PIN-u z siostrzanej appki — dotyczy WYŁĄCZNIE konta PF, nie rozsyła dalej.
+function syncPinPush_(b) {
+  const real = PropertiesService.getScriptProperties().getProperty('SYNC_SECRET');
+  if (!real || String(b.secret || '') !== real) return fail_('auth');
+  const pin = validPin_(b.newPin);
+  if (!pin) return { ok: true }; // inny format PIN-u (np. dłuższy z Paliwa/Wagi) - pomijamy, to nie błąd
+  const u = findUser_(LEGACY_OWNER);
+  if (!u) return fail_('bad');
+  setPin_(u, pin, false);
+  return { ok: true };
+}
+
+function syncSelftest_() {
+  const secret = PropertiesService.getScriptProperties().getProperty('SYNC_SECRET');
+  if (!secret) return fail_('nosecret');
+  const results = SIBLING_URLS.map(function (url) {
+    try {
+      const res = UrlFetchApp.fetch(url, {
+        method: 'post', contentType: 'text/plain',
+        payload: JSON.stringify({ action: 'sync_ping', secret: secret }),
+        muteHttpExceptions: true
+      });
+      return { url: url, status: res.getResponseCode(), body: res.getContentText().slice(0, 300) };
+    } catch (e) {
+      return { url: url, error: e.message };
+    }
+  });
+  return { ok: true, results: results };
+}
+
+// Wywoływane, gdy PIN konta PF faktycznie się zmienił — rozsyła do sióstr.
+// Najlepszego wysiłku: appka, która akurat nie odpowie, dogoni przy najbliższym auth-fail.
+function pushPinToSiblings_(pin) {
+  const secret = PropertiesService.getScriptProperties().getProperty('SYNC_SECRET');
+  if (!secret) return;
+  SIBLING_URLS.forEach(function (url) {
+    try {
+      UrlFetchApp.fetch(url, {
+        method: 'post', contentType: 'text/plain',
+        payload: JSON.stringify({ action: 'sync_pin_push', secret: secret, newPin: pin }),
+        muteHttpExceptions: true
+      });
+    } catch (e) { /* best-effort — patrz komentarz wyżej */ }
+  });
+}
+
 const USERS_SHEET = 'Users';
 const SESSIONS_SHEET = 'Sessions';
 const USERS_HEADERS = ['id', 'name', 'role', 'salt', 'hash', 'fails', 'lockUntil', 'visibleMonths', 'active', 'lockCount', 'createdAt', 'canExport', 'canImport', 'startPin'];
@@ -102,6 +168,13 @@ function dispatch_(b) {
   if (action === 'login') return login_(b);
   if (action === 'bootstrap') return bootstrap_(b);
   if (action === 'backup') return backup_(b);
+  if (action === 'bootstrap_sync_secret') return bootstrapSyncSecret_(b);
+  if (action === 'sync_pin_push') return syncPinPush_(b);
+  if (action === 'sync_selftest') return syncSelftest_();
+  if (action === 'sync_ping') {
+    const real = PropertiesService.getScriptProperties().getProperty('SYNC_SECRET');
+    return { ok: !!real && String(b.secret || '') === real };
+  }
   // Przejściowo: eksport bez tokenu dla appki w wersji sprzed logowania.
   if (action === 'export' && LEGACY_OPEN && !b.token) return exportXlsx_(b, null);
 
@@ -194,6 +267,7 @@ function changePin_(user, b) {
   const u = findUser_(user.id);
   if (!safeEqual_(hashPin_(oldPin, u.salt), u.hash)) return fail_('bad');
   setPin_(u, newPin, false);
+  if (u.id === LEGACY_OWNER) pushPinToSiblings_(newPin);
   return { ok: true };
 }
 
@@ -284,6 +358,7 @@ function adminSetPin_(b) {
   const pin = validPin_(b.pin);
   if (!u || !pin) return fail_('bad');
   setPin_(u, pin, u.role !== 'admin');   // PIN admina nie jest odwracalny (nikt go nie odczyta)
+  if (u.id === LEGACY_OWNER) pushPinToSiblings_(pin);
   return { ok: true };
 }
 
