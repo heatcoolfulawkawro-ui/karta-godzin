@@ -303,8 +303,8 @@
     <div class="lg-sub">RA-STER</div>
     <label for="lgUser">Login (skrót)</label>
     <input id="lgUser" name="username" autocomplete="username" autocapitalize="characters" maxlength="6" placeholder="np. PF">
-    <label for="lgPin">PIN (6 cyfr)</label>
-    <input id="lgPin" name="password" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" placeholder="••••••">
+    <label for="lgPin">PIN</label>
+    <input id="lgPin" name="password" type="password" inputmode="numeric" autocomplete="current-password" maxlength="10" placeholder="••••••">
     <div class="lg-err" id="lgErr"></div>
     <button class="lg-btn" id="lgBtn" type="submit">Zaloguj</button>
     <div class="lg-foot">Zostajesz zalogowany na tym telefonie przez 30 dni.<br>5 błędnych PIN-ów blokuje konto na kilka minut.</div>
@@ -315,11 +315,11 @@
   <form class="lg-box" id="pmForm" autocomplete="off">
     <div class="lg-title" style="font-size:18px">Zmiana PIN-u</div>
     <label for="pmOld">Obecny PIN</label>
-    <input id="pmOld" type="password" inputmode="numeric" maxlength="6" placeholder="••••••">
-    <label for="pmNew">Nowy PIN (6 cyfr)</label>
-    <input id="pmNew" type="password" inputmode="numeric" maxlength="6" placeholder="••••••">
+    <input id="pmOld" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
+    <label for="pmNew">Nowy PIN (4-10 cyfr)</label>
+    <input id="pmNew" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
     <label for="pmNew2">Powtórz nowy PIN</label>
-    <input id="pmNew2" type="password" inputmode="numeric" maxlength="6" placeholder="••••••">
+    <input id="pmNew2" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
     <div class="lg-err" id="pmErr"></div>
     <button class="lg-btn" type="submit">Zapisz PIN</button>
     <button class="lg-btn ghost" type="button" id="pmCancel">Anuluj</button>
@@ -1701,7 +1701,7 @@ $id('lgForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const u = $id('lgUser').value.trim();
   const pin = $id('lgPin').value.trim();
-  if(!u || !/^\d{6}$/.test(pin)){ $id('lgErr').textContent = 'Wpisz login i PIN z 6 cyfr.'; return; }
+  if(!u || !/^\d{4,10}$/.test(pin)){ $id('lgErr').textContent = 'Wpisz login i PIN (4-10 cyfr).'; return; }
   const btn = $id('lgBtn');
   btn.disabled = true; btn.textContent = 'Loguję…';
   try{
@@ -1753,7 +1753,7 @@ $id('pmForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   $id('pmErr').textContent = '';
   const o = $id('pmOld').value.trim(), n1 = $id('pmNew').value.trim(), n2 = $id('pmNew2').value.trim();
-  if(!/^\d{6}$/.test(o) || !/^\d{6}$/.test(n1)){ $id('pmErr').textContent = 'PIN to dokładnie 6 cyfr.'; return; }
+  if(!/^\d{4,10}$/.test(o) || !/^\d{4,10}$/.test(n1)){ $id('pmErr').textContent = 'PIN to 4-10 cyfr.'; return; }
   if(n1 !== n2){ $id('pmErr').textContent = 'Nowy PIN i powtórzenie się różnią.'; return; }
   if(n1 === o){ $id('pmErr').textContent = 'Nowy PIN musi być inny niż obecny.'; return; }
   try{
@@ -1795,7 +1795,7 @@ function adminUserCard(u){
     <div class="pnl-row"><div><b>${escapeHtml(u.name)}</b><div class="pnl-dim">login ${escapeHtml(u.id)}</div></div><span class="pnl-pill ${u.locked?'bad':'ok'}">${u.locked?'zablokowany':'aktywny'}</span></div>
     <div class="pnl-lab">PIN</div>
     <div class="pnl-pinline">${pinLine}</div>
-    <div class="pnl-row2"><input class="pnl-in f-np" inputmode="numeric" maxlength="6" placeholder="nowy PIN (6 cyfr)"><button class="pnl-btn" data-act="setpin">Ustaw</button></div>
+    <div class="pnl-row2"><input class="pnl-in f-np" inputmode="numeric" maxlength="10" placeholder="nowy PIN (4-10 cyfr)"><button class="pnl-btn" data-act="setpin">Ustaw</button></div>
     <div class="pnl-lab">Co widzi w historii</div>
     <select class="pnl-in f-vis" data-act="vis">${VIS_OPTS.map(o=>`<option value="${o[0]}" ${o[0]===u.visibleMonths?'selected':''}>${o[1]}</option>`).join('')}</select>
     <div class="pnl-lab">Uprawnienia do plików</div>
@@ -1824,11 +1824,11 @@ async function renderAdmin(){
     <div class="pnl-card hide" id="adAdd"><b>Nowy serwisant</b>
       <div class="pnl-lab">Imię i nazwisko</div><input class="pnl-in" id="adNewName" placeholder="Jan Kowalski">
       <div class="pnl-row2"><div><div class="pnl-lab">Login (skrót, litery)</div><input class="pnl-in" id="adNewId" maxlength="6" autocapitalize="characters" placeholder="JK"></div>
-      <div><div class="pnl-lab">PIN startowy</div><input class="pnl-in" id="adNewPin" inputmode="numeric" maxlength="6" placeholder="6 cyfr"></div></div>
+      <div><div class="pnl-lab">PIN startowy</div><input class="pnl-in" id="adNewPin" inputmode="numeric" maxlength="10" placeholder="4-10 cyfr"></div></div>
       <button class="pnl-btn primary" data-act="create">Utwórz konto</button></div>
     ${me?`<div class="pnl-card" data-id="${escapeAttr(me.id)}"><div class="pnl-row"><div><b>${escapeHtml(me.name)}</b> <span class="pnl-pill">admin</span><div class="pnl-dim">login ${escapeHtml(me.id)}</div></div><span class="pnl-pill ok">aktywny</span></div>
       <div class="pnl-lab">Twój PIN</div><div class="pnl-dim">Nie pamiętasz PIN-u albo chcesz go zmienić? Wpisz nowy — nikt go nie zobaczy. Zostaniesz zalogowany od razu, a na innych urządzeniach zalogujesz się ponownie.</div>
-      <div class="pnl-row2"><input class="pnl-in f-np" type="password" inputmode="numeric" maxlength="6" placeholder="nowy PIN (6 cyfr)" autocomplete="new-password"><input class="pnl-in f-np2" type="password" inputmode="numeric" maxlength="6" placeholder="powtórz PIN" autocomplete="new-password"></div>
+      <div class="pnl-row2"><input class="pnl-in f-np" type="password" inputmode="numeric" maxlength="10" placeholder="nowy PIN (4-10 cyfr)" autocomplete="new-password"><input class="pnl-in f-np2" type="password" inputmode="numeric" maxlength="10" placeholder="powtórz PIN" autocomplete="new-password"></div>
       <div class="pnl-row2"><button class="pnl-btn primary" data-act="setownpin">Ustaw mój PIN</button></div></div>`:''}
     ${active.map(adminUserCard).join('') || '<div class="pnl-note">Brak serwisantów. Dodaj pierwszego przyciskiem „＋ Dodaj”.</div>'}
     ${off.length?`<details class="pnl-off"><summary>Wyłączeni (${off.length})</summary>${off.map(u=>`<div class="pnl-card" data-id="${escapeAttr(u.id)}"><div class="pnl-row"><div><b>${escapeHtml(u.name)}</b><div class="pnl-dim">login ${escapeHtml(u.id)} · dane i PIN zostają</div></div><button class="pnl-btn" data-act="on">Włącz konto</button></div></div>`).join('')}</details>`:''}
@@ -1861,7 +1861,7 @@ $id('adminView').addEventListener('click', async (e)=>{
   if(act === 'addtoggle'){ $id('adAdd').classList.toggle('hide'); return; }
   if(act === 'create'){
     const name = $id('adNewName').value.trim(), id = $id('adNewId').value.trim().toUpperCase(), pin = $id('adNewPin').value.trim();
-    if(!name || !/^[A-Z]{1,6}$/.test(id) || !/^\d{6}$/.test(pin)){ adminToast('Podaj imię i nazwisko, skrót (1–6 liter) i PIN z 6 cyfr.', true); return; }
+    if(!name || !/^[A-Z]{1,6}$/.test(id) || !/^\d{4,10}$/.test(pin)){ adminToast('Podaj imię i nazwisko, skrót (1–6 liter) i PIN (4-10 cyfr).', true); return; }
     if(await adminCall('admin.createUser', {id: id, name: name, pin: pin, visibleMonths: 0}, `Utworzono konto: ${name} (${id}). PIN startowy widzisz na karcie.`)) await renderAdmin();
     return;
   }
@@ -1874,7 +1874,7 @@ $id('adminView').addEventListener('click', async (e)=>{
   if(act === 'setownpin'){
     const card = el.closest('.pnl-card');
     const p1 = card.querySelector('.f-np').value.trim(), p2 = card.querySelector('.f-np2').value.trim();
-    if(!/^\d{6}$/.test(p1)){ adminToast('PIN to dokładnie 6 cyfr.', true); return; }
+    if(!/^\d{4,10}$/.test(p1)){ adminToast('PIN to 4-10 cyfr.', true); return; }
     if(p1 !== p2){ adminToast('PIN i powtórzenie się różnią.', true); return; }
     const uid = userId();
     if(await adminCall('admin.setPin', {id: uid, pin: p1}, 'Twój PIN został zmieniony.')){
@@ -1888,7 +1888,7 @@ $id('adminView').addEventListener('click', async (e)=>{
   if(!u) return;
   if(act === 'setpin'){
     const pin = el.closest('.pnl-card').querySelector('.f-np').value.trim();
-    if(!/^\d{6}$/.test(pin)){ adminToast('PIN to dokładnie 6 cyfr.', true); return; }
+    if(!/^\d{4,10}$/.test(pin)){ adminToast('PIN to 4-10 cyfr.', true); return; }
     if(await adminCall('admin.setPin', {id: u.id, pin: pin}, `Nowy PIN dla ${u.name} ustawiony — zostanie wylogowany na telefonie.`)) await renderAdmin();
   } else if(act === 'unlock'){
     if(await adminCall('admin.unlock', {id: u.id}, `Konto ${u.name} odblokowane.`)) await renderAdmin();

@@ -606,7 +606,7 @@ function validId_(v) {
 
 function validPin_(v) {
   const s = String(v || '');
-  return /^\d{6}$/.test(s) ? s : null;
+  return /^\d{4,10}$/.test(s) ? s : null;
 }
 
 function getPepper_() {
