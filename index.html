@@ -3,7 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>Karta godzin — Paweł Fuławka</title>
+<title>Karta godzin</title>
+<script>
+// Skróty na ekranie głównym telefonu potrafią pokazywać zbuforowaną,
+// starą wersję strony. Ten kod po cichu sprawdza w tle prawdziwą
+// aktualną wersję na serwerze (z pominięciem cache przeglądarki) i
+// odświeża stronę automatycznie, jeśli wykryje nowszą.
+(function(){
+  try{
+    fetch(location.pathname, { method:'HEAD', cache:'no-store' }).then(function(res){
+      var v = res.headers.get('last-modified') || res.headers.get('etag');
+      if(!v) return;
+      var stored = localStorage.getItem('kartagodzin_page_version');
+      localStorage.setItem('kartagodzin_page_version', v);
+      if(stored && stored !== v) location.reload();
+    }).catch(function(){});
+  }catch(e){}
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
@@ -15,7 +32,9 @@
   body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',Roboto,Arial,sans-serif; padding-bottom:24px; }
   header{ position:sticky; top:0; z-index:5; background:linear-gradient(180deg,#151c22 0%, #12181d 100%); border-bottom:1px solid var(--line); padding:12px 16px 8px; }
   header h1{ margin:0 0 2px; font-size:16px; font-weight:700; }
+  header h1 .vertag{ font-size:10px; font-weight:400; color:var(--ink-dim); background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:1px 5px; margin-left:6px; vertical-align:middle; }
   header .who{ color:var(--ink-dim); font-size:12px; margin-bottom:8px; }
+  header .who .buildtag{ color:var(--ink-dim); }
   .monthbar{ display:flex; align-items:center; gap:8px; }
   .monthbar button{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); width:32px; height:32px; border-radius:8px; font-size:16px; }
   .monthbar .label{ flex:1; text-align:center; font-weight:600; font-size:14.5px; text-transform:capitalize; }
@@ -29,11 +48,15 @@
   .icontoolbar{ display:flex; align-items:center; gap:8px; margin-top:8px; }
   .icobtn{ position:relative; width:36px; height:36px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:15px; color:var(--ink); overflow:hidden; line-height:1; }
   .icobtn.green{ color:var(--green); border-color:#2f4a3a; }
+  .icobtn.pulse{ background:var(--amber); color:#20140a; border-color:var(--amber); animation:pulseglow 1s ease-in-out infinite; }
+  .icobtn.pulse .xlstag{ color:#20140a; }
+  @keyframes pulseglow{ 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
   .icobtn .xlstag{ font-size:7px; color:var(--green); font-weight:700; margin-top:1px; }
   .icobtn input[type=file]{ position:absolute; inset:0; opacity:0; width:100%; height:100%; }
   .statusdot{ width:12px; height:12px; border-radius:50%; background:var(--ink-dim); flex:0 0 12px; margin-right:2px; }
   .statusdot.ok{ background:var(--green); box-shadow:0 0 6px var(--green); }
   .statusdot.fail{ background:var(--red); box-shadow:0 0 6px var(--red); }
+  .statusdot.local{ background:var(--amber); box-shadow:0 0 6px var(--amber); }
   .cloudtag{ font-size:9.5px; color:var(--ink-dim); text-align:center; margin-top:4px; }
 
   .summarybar{ margin-top:8px; }
@@ -41,34 +64,41 @@
   .summarybar .box{ flex:1; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:7px 8px; text-align:center; }
   .summarybar .box .v{ font-size:16px; font-weight:700; color:var(--amber); }
   .summarybar .box .l{ font-size:9.5px; color:var(--ink-dim); margin-top:1px; }
-  .summarybar .toggle{ text-align:center; font-size:11px; color:var(--ink-dim); margin-top:8px; }
-  .condensed{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
-  .cond-row1{ display:flex; gap:8px; margin-bottom:8px; }
+  .summarybar .toggle{ text-align:center; font-size:11.5px; font-weight:600; color:var(--ink); margin-top:6px; padding:6px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; }
+  .condensed{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:6px 8px; }
+  .cond-row1{ display:flex; gap:8px; margin-bottom:5px; }
   .cond-row1 .c1{ flex:1; text-align:center; }
-  .cond-row1 .l{ font-size:10px; color:var(--ink-dim); margin-bottom:1px; }
-  .cond-row1 .v{ font-size:18px; font-weight:700; }
+  .cond-row1 .l{ font-size:8.5px; color:var(--ink-dim); margin-bottom:0; }
+  .cond-row1 .v{ font-size:14px; font-weight:700; line-height:1.15; }
   .cond-row1 .v.norma{ color:var(--blue); }
   .cond-row1 .v.delta.pos{ color:var(--green); }
   .cond-row1 .v.delta.neg{ color:var(--red); }
-  .condensed .cond-chips{ display:flex; gap:6px; }
-  .condensed .chip{ flex:1; background:var(--panel2); border-radius:8px; padding:5px 3px; text-align:center; }
-  .condensed .chip .l{ font-size:9px; color:var(--ink-dim); margin-bottom:2px; }
-  .condensed .chip .v{ font-size:12.5px; font-weight:700; }
+  .condensed .cond-chips{ display:flex; gap:4px; }
+  .condensed .chip{ flex:1; min-width:0; background:var(--panel2); border-radius:6px; padding:3px 2px; text-align:center; }
+  .condensed .chip .l{ font-size:8px; color:var(--ink-dim); margin-bottom:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .condensed .chip .v{ font-size:10.5px; font-weight:700; white-space:nowrap; }
+  .condensed .chip.avgchip{ flex:1.5; border:1px solid var(--line); padding:2px; cursor:pointer; }
+  .condensed .chip.avgchip .v{ color:var(--amber); }
   .condensed .chip .v.pos{ color:var(--green); } .condensed .chip .v.neg{ color:var(--red); }
   .detail{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; }
   .detail-row{ display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:12.5px; border-bottom:1px solid var(--line); }
   .detail-row:last-child{ border-bottom:none; }
   .detail-row label{ display:flex; align-items:center; gap:6px; color:var(--ink); }
   .detail-row .val{ font-weight:700; }
+  .detail-row.zone{ flex-wrap:wrap; }
+  .detail-row .pct{ margin-left:auto; margin-right:10px; color:var(--ink-dim); font-size:11px; }
+  .zonebar{ flex:0 0 100%; height:4px; border-radius:2px; background:var(--panel2); margin-top:4px; overflow:hidden; }
+  .zonebar i{ display:block; height:100%; width:0; border-radius:2px; }
   .detail-row .hint{ color:var(--ink-dim); font-size:10px; }
   .detail-row input[type=checkbox]{ width:15px; height:15px; }
   .detail-row input[type=number]{ width:56px; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:3px 5px; text-align:center; }
   .bilans.pos{ color:var(--green); } .bilans.neg{ color:var(--red); }
-  .overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:20; align-items:flex-end; }
-  .overlay.open{ display:flex; }
-  .overlay-card{ width:100%; max-height:80vh; overflow-y:auto; background:var(--bg); border-radius:16px 16px 0 0; padding:14px 16px calc(20px + env(safe-area-inset-bottom)); }
-  .overlay-head{ display:flex; justify-content:space-between; align-items:center; font-size:15px; font-weight:700; margin-bottom:10px; }
-  .overlay-head button{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); width:28px; height:28px; border-radius:8px; font-size:13px; }
+  /* Month summary is a full page: open it, read, go back. */
+  .overlay{ display:none; position:fixed; inset:0; background:var(--bg); z-index:20; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .overlay.open{ display:block; }
+  .overlay-card{ width:100%; min-height:100%; background:var(--bg); padding:calc(12px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom)); }
+  .overlay-head{ display:flex; align-items:center; gap:12px; font-size:15px; font-weight:700; margin-bottom:12px; }
+  .overlay-head button{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); height:32px; padding:0 12px; border-radius:8px; font-size:13px; font-weight:600; }
 
   main{ padding:10px 10px 0; }
   .day{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; }
@@ -95,11 +125,34 @@
 
   .block{ margin-top:14px; padding-top:10px; border-top:1px solid var(--line); }
   .block:first-of-type{ border-top:none; }
-  .block-kind{ display:flex; gap:6px; margin-bottom:6px; }
-  .block-kind button{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:6px 2px; border-radius:7px; font-size:11px; }
+  .block-kind{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px; }
+  .block-kind button{ flex:1 1 30%; min-width:0; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:6px 2px; border-radius:7px; font-size:10px; }
   .block-kind button.active[data-kind=biuro]{ background:#4d7ea8; color:#eef5fb; border-color:#4d7ea8; }
   .block-kind button.active[data-kind=obiekt]{ background:#c07a34; color:#fff6ee; border-color:#c07a34; }
   .block-kind button.active[data-kind=wizja]{ background:#7a5ca8; color:#f5f0fb; border-color:#7a5ca8; }
+  .block-kind button.active[data-kind=organizacja]{ background:#5a8a5a; color:#eafbea; border-color:#5a8a5a; }
+  .block-kind button.active[data-kind=dojazd]{ background:var(--green); color:#0d1f14; border-color:var(--green); }
+  .block.collapsed{ margin-top:6px; padding-top:0; border-top:none; }
+  .blockbar{ display:flex; align-items:center; gap:7px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:7px 8px; font-size:12px; }
+  .blockbar .bb-kind{ font-size:10px; padding:2px 6px; border-radius:6px; white-space:nowrap; background:#c07a34; color:#fff6ee; }
+  .blockbar .bb-kind[data-kind=biuro]{ background:#4d7ea8; color:#eef5fb; }
+  .blockbar .bb-kind[data-kind=wizja]{ background:#7a5ca8; color:#f5f0fb; }
+  .blockbar .bb-kind[data-kind=organizacja]{ background:#5a8a5a; color:#eafbea; }
+  .blockbar .bb-kind[data-kind=dojazd]{ background:var(--green); color:#0d1f14; }
+  .blockbar .bb-time{ font-weight:700; white-space:nowrap; }
+  .blockbar .bb-dur{ color:var(--ink-dim); white-space:nowrap; }
+  .blockbar .bb-kom{ flex:1; min-width:0; color:var(--ink-dim); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .blockbar .bb-chev{ color:var(--ink-dim); }
+  .blockbar.err{ border-color:var(--red); }
+  .blockerr{ font-size:11px; color:var(--red); margin-top:4px; }
+  .blockerr:empty{ display:none; }
+  .nightrow{ display:flex; align-items:center; justify-content:space-between; margin-top:8px; font-size:11.5px; color:var(--ink-dim); }
+  .nightrow input{ width:16px; height:16px; }
+  .insline{ display:flex; justify-content:center; margin:3px 0 0; }
+  .insline button, .gapbox .gapins{ background:none; border:1px dashed var(--line); color:var(--ink-dim); border-radius:10px; font-size:10.5px; padding:1px 10px; white-space:nowrap; }
+  .gapbox .gapins{ border-color:#4a3a1c; color:#d8b06a; }
+  .gapbox:not(.compact) .gapins{ display:block; margin:6px auto 0; }
+  .block-collapse{ display:block; margin:0 0 6px auto; background:none; border:none; color:var(--ink-dim); font-size:11px; padding:0 2px; }
   .block-row{ display:flex; align-items:center; gap:8px; }
   .block-row input[type=time]{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 6px; font-size:14px; min-width:0; }
   .block-row span.sep{ color:var(--ink-dim); }
@@ -111,6 +164,10 @@
   .gapwrap:empty{ display:none; }
   .gapbox{ margin:10px 0 2px; padding:8px 10px; background:#241d12; border:1px dashed #4a3a1c; border-radius:8px; }
   .gapbox .gaplabel{ font-size:11px; color:#d8b06a; margin-bottom:6px; }
+  .gapbox.compact{ display:flex; align-items:center; gap:8px; margin:5px 0 0; padding:3px 8px; }
+  .gapbox.compact .gaplabel{ margin-bottom:0; white-space:nowrap; }
+  .gapbox.compact .gaptoggle{ flex:1; }
+  .gapbox.compact .gaptoggle button{ padding:3px 4px; font-size:10.5px; }
   .gaptoggle{ display:flex; background:var(--panel2); border-radius:20px; padding:3px; position:relative; }
   .gaptoggle button{ flex:1; border:none; background:none; color:var(--ink-dim); font-size:11.5px; padding:6px 4px; border-radius:16px; position:relative; z-index:1; font-weight:600; transition:color .2s; }
   .gaptoggle button.active{ color:#20140a; }
@@ -146,15 +203,174 @@
 
   .savetag{ position:fixed; top:8px; right:12px; font-size:10.5px; color:var(--ink-dim); opacity:0; transition:opacity .3s; z-index:10;}
   .savetag.show{ opacity:1; }
+
+  /* ===== v1.3: logowanie, menu konta, panel admina ===== */
+  .overlay{ display:none; position:fixed; inset:0; z-index:100; background:var(--bg); overflow:auto; padding:24px 20px; }
+  .lg-box{ max-width:340px; margin:7vh auto 0; }
+  .lg-title{ text-align:center; font-size:22px; font-weight:700; }
+  .lg-sub{ text-align:center; color:var(--ink-dim); font-size:12px; margin:2px 0 22px; }
+  .lg-box label{ display:block; color:var(--ink-dim); font-size:12px; margin:12px 0 4px; }
+  .lg-box input{ width:100%; height:48px; font-size:16px; padding:0 12px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; }
+  .lg-err{ color:var(--red); font-size:13px; min-height:20px; margin:10px 0 6px; }
+  .lg-btn{ width:100%; height:48px; border:none; border-radius:10px; background:var(--amber); color:#20140a; font-size:16px; font-weight:700; }
+  .lg-btn.ghost{ background:var(--panel2); color:var(--ink); border:1px solid var(--line); margin-top:8px; font-weight:400; }
+  .lg-btn:disabled{ opacity:.6; }
+  .lg-foot{ color:var(--ink-dim); font-size:12px; text-align:center; margin-top:14px; line-height:1.5; }
+  .userchip{ position:absolute; top:10px; right:12px; background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:5px 10px; font-size:12px; }
+  .usermenu{ display:none; position:absolute; top:42px; right:12px; z-index:20; background:var(--panel); border:1px solid var(--line); border-radius:10px; min-width:150px; overflow:hidden; box-shadow:0 6px 18px rgba(0,0,0,.4); }
+  .usermenu.open{ display:block; }
+  .usermenu button{ display:block; width:100%; text-align:left; background:none; border:none; color:var(--ink); padding:12px 14px; font-size:14px; border-bottom:1px solid var(--line); }
+  .usermenu button:last-child{ border-bottom:none; }
+  .rolesw{ display:flex; gap:6px; margin:0 0 8px; }
+  .rolesw button{ flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--ink-dim); padding:7px 4px; border-radius:8px; font-size:12.5px; font-weight:600; }
+  .rolesw button.active{ background:var(--amber); color:#20140a; border-color:var(--amber); }
+  #adminView{ display:none; padding:8px 10px 24px; }
+  body.adminmode #adminView{ display:block; }
+  body.adminmode .monthbar, body.adminmode header .tabs, body.adminmode .viewmode-switch, body.adminmode .icontoolbar,
+  body.adminmode #viewDays, body.adminmode #days, body.adminmode #viewUrlopy, body.adminmode #viewUrlopRok{ display:none !important; }
+  .hiddenbox{ border:1px dashed var(--line); border-radius:10px; padding:26px 12px; text-align:center; color:var(--ink-dim); margin:12px 10px 0; }
+  .hiddenbox.urlopbox{ border-style:solid; background:var(--panel); padding:12px; text-align:left; }
+  .hb-ico{ font-size:26px; } .hb-t{ color:var(--ink); font-size:15px; margin-top:6px; } .hb-s{ font-size:12px; margin-top:4px; }
+  .hb-row{ display:flex; justify-content:space-between; align-items:center; color:var(--ink); } .hb-row b{ color:var(--blue); }
+  .pnl-head{ display:flex; justify-content:space-between; align-items:center; margin:6px 0; }
+  .pnl-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; margin:10px 0; }
+  .pnl-card.hide{ display:none; }
+  .pnl-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .pnl-row2{ display:flex; gap:8px; align-items:flex-end; margin-top:6px; }
+  .pnl-row2 > *{ flex:1; min-width:0; } .pnl-row2.wrap{ flex-wrap:wrap; }
+  .pnl-row2 > .pnl-btn{ flex:0 0 auto; }
+  .pnl-lab{ color:var(--ink-dim); font-size:12px; margin:12px 0 4px; }
+  .pnl-dim{ color:var(--ink-dim); font-size:12px; line-height:1.45; }
+  .pnl-pill{ font-size:11px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--ink-dim); white-space:nowrap; }
+  .pnl-pill.ok{ color:var(--green); border-color:var(--green); } .pnl-pill.bad{ color:var(--red); border-color:var(--red); }
+  .pnl-in{ width:100%; height:42px; font-size:16px; padding:0 10px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; }
+  .pnl-btn{ position:relative; display:inline-block; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13px; text-decoration:none; text-align:center; overflow:hidden; }
+  .pnl-btn.primary{ background:var(--amber); color:#20140a; border-color:var(--amber); font-weight:700; }
+  .pnl-btn.danger{ color:var(--red); border-color:#5a3733; }
+  .pnl-btn input[type=file]{ position:absolute; inset:0; opacity:0; width:100%; height:100%; }
+  .pnl-chk{ display:flex; align-items:center; gap:10px; margin:8px 0; font-size:14px; }
+  .pnl-chk input{ width:18px; height:18px; accent-color:var(--amber); }
+  .pnl-pinline{ font-size:14px; }
+  .pnl-pinshow{ font-family:Consolas,monospace; font-size:17px; letter-spacing:2px; color:var(--amber); font-weight:700; }
+  .pnl-toast{ min-height:18px; margin-top:8px; font-size:13px; color:var(--green); } .pnl-toast.err{ color:var(--red); }
+  .pnl-note{ color:var(--ink-dim); text-align:center; padding:24px 0; font-size:14px; }
+  .pnl-off{ margin:14px 0; } .pnl-off summary{ color:var(--ink-dim); font-size:13px; padding:6px 0; }
+  #adBackupLink{ margin-top:8px; }
+
+  /* ===== v1.4: wyszukiwarka haseł ===== */
+  .spage{ display:none; position:fixed; inset:0; z-index:90; background:var(--bg); overflow:auto; overscroll-behavior:contain; }
+  .spage > *{ max-width:720px; margin-left:auto; margin-right:auto; }
+  .sp-top{ position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:8px; padding:10px 12px; background:#151c22; border-bottom:1px solid var(--line); }
+  .sp-back{ background:none; border:none; color:var(--ink-dim); font-size:14px; padding:8px 4px; }
+  .sp-in{ flex:1; min-width:0; height:44px; font-size:16px; padding:0 12px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; }
+  .sp-chips{ display:flex; gap:6px; padding:10px 12px; flex-wrap:wrap; }
+  .sp-chip{ font-size:12.5px; padding:8px 12px; border-radius:99px; background:var(--panel2); color:var(--ink-dim); border:1px solid var(--line); }
+  .sp-chip.on{ background:var(--amber); color:#20140a; border-color:var(--amber); font-weight:700; }
+  .sp-sum{ padding:2px 16px 8px; color:var(--ink-dim); font-size:12px; min-height:16px; }
+  .sp-note{ display:none; margin:0 12px 6px; padding:8px 10px; border:1px dashed var(--line); border-radius:8px; color:var(--ink-dim); font-size:12px; }
+  .sp-mh{ padding:10px 16px 4px; font-size:12px; color:var(--blue); font-weight:700; text-transform:capitalize; letter-spacing:.02em; }
+  .sp-hit{ display:block; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line); padding:11px 16px; color:var(--ink); }
+  .sp-hit:active{ background:var(--panel); }
+  .sp-hrow{ display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+  .sp-hd{ font-weight:700; font-size:13px; }
+  .sp-tag{ font-size:11px; font-weight:400; padding:1px 7px; border-radius:99px; border:1px solid var(--line); color:var(--ink-dim); margin-left:4px; }
+  .sp-tm{ font-size:11.5px; color:var(--ink-dim); white-space:nowrap; }
+  .sp-snip{ font-size:13.5px; line-height:1.45; margin-top:4px; color:#cfd8de; }
+  .sp-snip mark{ background:rgba(232,163,61,.35); color:#ffd68a; border-radius:3px; padding:0 1px; }
+  .sp-empty{ text-align:center; color:var(--ink-dim); padding:40px 24px; font-size:14px; line-height:1.55; }
+  .sp-empty.err{ color:var(--red); } .sp-dim{ font-size:12px; color:var(--ink-dim); }
+  #findBar{ display:none; position:fixed; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom, 0px)); z-index:60; align-items:center; gap:6px; background:#1f2a32; border:1px solid var(--amber); border-radius:12px; padding:8px; box-shadow:0 6px 18px rgba(0,0,0,.45); }
+  body.adminmode #findBar{ display:none !important; }
+  #findBar .fb-mid{ flex:1; text-align:center; font-size:13px; min-width:0; }
+  #findBar .fb-mid small{ display:block; color:var(--ink-dim); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #findBar button{ background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:9px 12px; font-size:14px; }
+  #findBar button.fb-list{ background:var(--amber); color:#20140a; border-color:var(--amber); font-weight:700; font-size:13px; }
+  .block.find-hit, .urlop-komentarz.find-hit{ outline:2px solid var(--amber); outline-offset:1px; background:rgba(232,163,61,.10); }
+  /* ===== v1.5: kopia całego roku ===== */
+  .icobtn.blue{ color:var(--blue); border-color:#2f4560; }
+  .icobtn.blue .xlstag{ color:var(--blue); }
+  .yr-sel{ width:100%; height:48px; font-size:16px; padding:0 12px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px; }
+  .yr-info{ color:var(--ink-dim); font-size:13px; line-height:1.5; margin:12px 0 0; min-height:18px; }
+  .yr-link{ display:none; text-align:center; text-decoration:none; padding:14px; margin-top:12px; border-radius:10px; background:var(--blue); color:#0d1a24; font-weight:700; font-size:15px; overflow-wrap:anywhere; }
 </style>
 </head>
 <body>
 
 <div class="savetag" id="savetag">zapisano</div>
 
+<div class="overlay" id="loginScreen">
+  <form class="lg-box" id="lgForm" autocomplete="on">
+    <div class="lg-title">Karta godzin</div>
+    <div class="lg-sub">RA-STER</div>
+    <label for="lgUser">Login (skrót)</label>
+    <input id="lgUser" name="username" autocomplete="username" autocapitalize="characters" maxlength="6" placeholder="np. PF">
+    <label for="lgPin">PIN</label>
+    <input id="lgPin" name="password" type="password" inputmode="numeric" autocomplete="current-password" maxlength="10" placeholder="••••••">
+    <div class="lg-err" id="lgErr"></div>
+    <button class="lg-btn" id="lgBtn" type="submit">Zaloguj</button>
+    <div class="lg-foot">Zostajesz zalogowany na tym telefonie przez 30 dni.<br>5 błędnych PIN-ów blokuje konto na kilka minut.</div>
+  </form>
+</div>
+
+<div class="overlay" id="pinModal">
+  <form class="lg-box" id="pmForm" autocomplete="off">
+    <div class="lg-title" style="font-size:18px">Zmiana PIN-u</div>
+    <label for="pmOld">Obecny PIN</label>
+    <input id="pmOld" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
+    <label for="pmNew">Nowy PIN (4-10 cyfr)</label>
+    <input id="pmNew" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
+    <label for="pmNew2">Powtórz nowy PIN</label>
+    <input id="pmNew2" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
+    <div class="lg-err" id="pmErr"></div>
+    <button class="lg-btn" type="submit">Zapisz PIN</button>
+    <button class="lg-btn ghost" type="button" id="pmCancel">Anuluj</button>
+  </form>
+</div>
+
+<div class="overlay" id="yearModal">
+  <div class="lg-box">
+    <div class="lg-title" style="font-size:18px">Kopia całego roku</div>
+    <div class="lg-sub" style="margin-bottom:14px">jeden plik Excela · arkusz na każdy miesiąc</div>
+    <label for="yrSel">Rok</label>
+    <select class="yr-sel" id="yrSel"></select>
+    <div class="yr-info" style="color:var(--ink-dim)">Styczeń–grudzień wybranego roku, także miesiące bez wpisów (np. do końca roku). Każdy arkusz ma ten sam układ co eksport jednego miesiąca.</div>
+    <div class="lg-err" id="yrErr"></div>
+    <button class="lg-btn" type="button" id="yrGo">Przygotuj plik</button>
+    <a class="yr-link" id="yrLink" href="#">↓ Pobierz</a>
+    <div class="yr-info" id="yrInfo"></div>
+    <button class="lg-btn ghost" type="button" id="yrClose">Zamknij</button>
+  </div>
+</div>
+
+<div class="spage" id="searchPage">
+  <form class="sp-top" id="spForm" role="search">
+    <button type="button" class="sp-back" id="spBack">‹ Wróć</button>
+    <input class="sp-in" id="spQ" type="search" enterkeyhint="search" placeholder="Szukaj w opisach…" autocomplete="off" autocapitalize="off" spellcheck="false">
+  </form>
+  <div class="sp-chips" id="spChips"></div>
+  <div class="sp-sum" id="spSum"></div>
+  <div class="sp-note" id="spNote"></div>
+  <div id="spRes"></div>
+</div>
+
+<div id="findBar">
+  <button type="button" id="fbPrev" aria-label="Poprzedni wynik">‹</button>
+  <div class="fb-mid"><span id="fbPos">—</span><small id="fbQ"></small></div>
+  <button type="button" id="fbNext" aria-label="Następny wynik">›</button>
+  <button type="button" class="fb-list" id="fbList">Lista</button>
+  <button type="button" id="fbClose" aria-label="Zamknij wyszukiwanie">✕</button>
+</div>
+
 <header>
-  <h1>Karta godzin</h1>
-  <div class="who">Paweł Fuławka</div>
+  <div style="position:absolute;top:10px;right:12px;display:flex;align-items:center;gap:6px;">
+    <span class="statusdot" id="statusDot" title="Status połączenia z Arkuszem" style="cursor:pointer;"></span>
+    <button id="btnHub" title="Rozdzielacz" style="display:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:14px;">🏠</button>
+    <button class="userchip" id="userChip" style="display:none;position:static;">—</button>
+  </div>
+  <div class="usermenu" id="userMenu"><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
+  <h1>Karta godzin <span class="vertag">v1.5</span></h1>
+  <div class="who"><span id="whoName">—</span> · <span class="buildtag">21.09.2026 11:08</span></div>
+  <div class="rolesw" id="roleSw" style="display:none"><button id="swKarta" class="active">Karta</button><button id="swAdmin">Admin</button></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
     <div class="label" id="monthLabel">—</div>
@@ -172,12 +388,13 @@
   </div>
 
   <div class="icontoolbar">
-    <span class="statusdot" id="statusDot" title="Status połączenia z Arkuszem"></span>
     <label class="icobtn green" id="btnImport" title="Importuj z .xlsx">
       ↓<span class="xlstag">xlsx</span>
       <input type="file" id="importFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
     </label>
-    <button class="icobtn green" id="btnExport" title="Eksport .xlsx">↑<span class="xlstag">xlsx</span></button>
+    <a class="icobtn green" id="btnExport" title="Eksport .xlsx" href="#">↑<span class="xlstag" id="btnExportTag">xlsx</span></a>
+    <button class="icobtn blue" id="btnExportYear" type="button" title="Kopia całego roku (.xlsx)" aria-label="Kopia całego roku"><span>↑</span><span class="xlstag">rok</span></button>
+    <button class="icobtn" id="btnSearch" type="button" title="Szukaj w opisach" aria-label="Szukaj w opisach">🔍</button>
   </div>
 
   <div class="summarybar" id="viewDays">
@@ -192,13 +409,15 @@
         <div class="chip"><div class="l" id="condShareLabel">niedobór</div><div class="v" id="condShare">0%</div></div>
         <div class="chip"><div class="l">dni z wpisem</div><div class="v" id="condFilled">0/0</div></div>
         <div class="chip"><div class="l">urlop</div><div class="v" id="condUrlopChip">0/26</div></div>
+        <div class="chip avgchip" id="condAvgChip" title="Dotknij, aby przełączyć sposób liczenia średniej"><div class="l" id="condAvgLabel">śr./dzień rob. ⇄</div><div class="v" id="condAvg">—</div></div>
       </div>
     </div>
-    <div class="toggle" id="toggleDetail">Podsumowanie miesiąca ▸</div>
+    <div class="toggle" id="toggleDetail">📊 Podsumowanie miesiąca ▸</div>
   </div>
 </header>
 
 <main id="days"></main>
+<div id="adminView"></div>
 <div id="viewUrlopy" class="urlop-list" style="display:none; padding:0 10px;"></div>
 
 <div id="viewUrlopRok" class="urlop-rok" style="display:none;">
@@ -215,14 +434,15 @@
 <div class="overlay" id="detailOverlay">
   <div class="overlay-card">
     <div class="overlay-head">
+      <button id="closeDetail">‹ Wróć</button>
       <span>Podsumowanie miesiąca</span>
-      <button id="closeDetail">✕</button>
     </div>
     <div class="detail" id="detailPanel">
-      <div class="detail-row"><label><input type="checkbox" id="chkBiuro" checked> Biuro</label><span class="val" id="sBiuro">0:00</span></div>
-      <div class="detail-row"><label><input type="checkbox" id="chkObiekt" checked> Obiekt</label><span class="val" id="sObiekt">0:00</span></div>
-      <div class="detail-row"><label><input type="checkbox" id="chkWizja" checked> Wizje lokalne</label><span class="val" id="sWizja">0:00</span></div>
-      <div class="detail-row"><label>🚗 Dojazdy <span class="hint">(zawsze liczone)</span></label><span class="val" id="sDojazd">0:00</span></div>
+      <div class="detail-row zone"><label><input type="checkbox" id="chkBiuro" checked> Biuro</label><span class="pct" id="pBiuro"></span><span class="val" id="sBiuro">0:00</span><div class="zonebar"><i id="bBiuro" style="background:#4d7ea8"></i></div></div>
+      <div class="detail-row zone"><label><input type="checkbox" id="chkObiekt" checked> Obiekt</label><span class="pct" id="pObiekt"></span><span class="val" id="sObiekt">0:00</span><div class="zonebar"><i id="bObiekt" style="background:#c07a34"></i></div></div>
+      <div class="detail-row zone"><label><input type="checkbox" id="chkWizja" checked> Wizje lokalne</label><span class="pct" id="pWizja"></span><span class="val" id="sWizja">0:00</span><div class="zonebar"><i id="bWizja" style="background:#7a5ca8"></i></div></div>
+      <div class="detail-row zone"><label><input type="checkbox" id="chkOrganizacja" checked> Organizacja</label><span class="pct" id="pOrganizacja"></span><span class="val" id="sOrganizacja">0:00</span><div class="zonebar"><i id="bOrganizacja" style="background:#5a8a5a"></i></div></div>
+      <div class="detail-row zone"><label>🚗 Dojazdy <span class="hint">(zawsze liczone)</span></label><span class="pct" id="pDojazd"></span><span class="val" id="sDojazd">0:00</span><div class="zonebar"><i id="bDojazd" style="background:var(--green)"></i></div></div>
       <div class="detail-row"><label>☕ Przerwy <span class="hint">(nie liczone)</span></label><span class="val" id="sPrzerwa">0:00</span></div>
       <div class="detail-row"><label>Dni robocze (bez weekendów i świąt)</label><span class="val" id="sWorkdays">0</span></div>
       <div class="detail-row"><label>Norma godzin</label><input type="number" id="inpNorma" step="0.5"></div>
@@ -236,8 +456,8 @@
 <script>
 const DAY_NAMES = ['Nd','Pn','Wt','Śr','Czw','Pt','So'];
 const MONTH_NAMES = ['styczeń','luty','marzec','kwiecień','maj','czerwiec','lipiec','sierpień','wrzesień','październik','listopad','grudzień'];
-const KIND_LABEL = {biuro:'🏢 Biuro', obiekt:'🔧 Obiekt', wizja:'👁 Wizja'};
-const KIND_SHORT = {biuro:'Biuro', obiekt:'Obiekt', wizja:'Wizja'};
+const KIND_LABEL = {biuro:'🏢 Biuro', obiekt:'🔧 Obiekt', wizja:'👁 Wizja', organizacja:'📋 Organizacja', dojazd:'🚗 Dojazd'};
+const KIND_SHORT = {biuro:'Biuro', obiekt:'Obiekt', wizja:'Wizja', organizacja:'Organizacja', dojazd:'Dojazd'};
 
 let today = new Date();
 let curYear = today.getFullYear();
@@ -251,7 +471,7 @@ function storageKey(y,m){ return `karta_godzin_v3_${y}_${m}`; }
 function daysInMonth(y,m){ return new Date(y, m, 0).getDate(); }
 
 function emptyDay(){
-  return { dayType:'praca', urlopKomentarz:'', blocks:[{start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'}] };
+  return { dayType:'praca', urlopKomentarz:'', nocna:false, blocks:[{start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'}] };
 }
 
 function migrateOld(oldArr, n){
@@ -259,7 +479,7 @@ function migrateOld(oldArr, n){
   for(let i=0;i<n;i++){
     const o = oldArr[i];
     if(!o){ arr.push(emptyDay()); continue; }
-    if(o.blocks && o.blocks[0] && 'gapAfter' in o.blocks[0]){ arr.push(o); continue; } // already v3
+    if(o.blocks && o.blocks[0] && 'gapAfter' in o.blocks[0]){ arr.push(legacyNightFlag(o)); continue; } // already v3
     // v2 shape: blocks without komentarz/gapAfter, day-level opis
     let blocks = (o.blocks||[{start:'',end:'',kind:'obiekt'}]).map((b,i2)=>({
       start:b.start||'', end:b.end||'', kind:b.kind||'obiekt',
@@ -267,43 +487,91 @@ function migrateOld(oldArr, n){
       gapAfter:'dojazd'
     }));
     if(blocks.length===0) blocks=[{start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'}];
-    arr.push({dayType:o.dayType||'praca', urlopKomentarz:o.urlopKomentarz||'', blocks});
+    arr.push(legacyNightFlag({dayType:o.dayType||'praca', urlopKomentarz:o.urlopKomentarz||'', blocks}));
   }
   return arr;
+}
+
+// Days saved before the "Praca w nocy" switch existed relied on automatic
+// midnight wrapping. Give those days the flag so their totals stay exactly as
+// they were; days without any wrap simply stay undefined until first opened.
+function legacyNightFlag(day){
+  if(day.nocna===undefined && day.dayType!=='urlop' && day.blocks){
+    const eff = computeEffectiveBlocks(day.blocks, true);
+    if(eff.some(w=>w.wrappedStart||w.wrappedEnd)) day.nocna = true;
+  }
+  return day;
 }
 
 // Loads a month from the Google Sheets backend (Apps Script), falling back
 // to the browser's local storage cache if the network call fails.
 const GAS_URL = 'https://script.google.com/macros/s/AKfycby09rSaJwoPPl6KeFn80xCOTiOzYM4EZyKy5XuJ0pBA28-x051wB9HXg_osSqUrjoHA/exec';
 
+// ===== Logowanie (v1.3): sesja z tokenem, każde wywołanie serwera idzie przez api() =====
+const AUTH_KEY = 'kg_auth_v1';
+let auth = null;
+try{
+  auth = JSON.parse(localStorage.getItem(AUTH_KEY));
+  if(auth && auth.expires && auth.expires < Date.now()) auth = null;
+}catch(e){ auth = null; }
+function saveAuth(a){
+  auth = a;
+  try{ if(a) localStorage.setItem(AUTH_KEY, JSON.stringify(a)); else localStorage.removeItem(AUTH_KEY); }catch(e){}
+}
+function userId(){ return auth && auth.user ? auth.user.id : ''; }
+function isAdmin(){ return !!(auth && auth.user && auth.user.role === 'admin'); }
+// Lokalny bufor jest osobny per konto; konto PF zostaje pod starymi kluczami (bez migracji).
+function lsKey(k){ const id = userId(); return (!id || id === 'PF') ? k : id + '::' + k; }
+// POST z Content-Type text/plain (bez preflightu CORS). Zwraca obiekt {ok, ...} z serwera;
+// błąd sieci rzuca wyjątek (wołający wraca wtedy do lokalnej kopii).
+async function api(action, payload){
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify(Object.assign({action: action, token: auth ? auth.token : undefined}, payload || {}))
+  });
+  const out = await res.json();
+  if(out && out.error === 'auth' && action !== 'login'){
+    saveAuth(null);
+    showLogin('Sesja wygasła. Zaloguj się ponownie.');
+  }
+  return out;
+}
+let monthHidden = false;      // miesiąc ukryty przez administratora (serwer odmówił odczytu)
+let yearUrlopCounts = new Array(12).fill(0);
+function blankMonth(n){ const arr = []; for(let d=1; d<=n; d++) arr.push(emptyDay()); return arr; }
+
 async function loadMonth(y,m){
   const n = daysInMonth(y,m);
   const key = storageKey(y,m);
+  monthHidden = false;
   try{
-    const res = await fetch(`${GAS_URL}?key=${key}`);
-    if(res.ok){
-      const text = await res.text();
-      if(text && text.trim()){
-        localStorage.setItem(key, text);
-        return migrateOld(JSON.parse(text), n);
-      }
+    const out = await api('get', {key: key});
+    if(out && out.ok && out.value && out.value.trim()){
+      try{ localStorage.setItem(lsKey(key), out.value); }catch(e){}
+      return migrateOld(JSON.parse(out.value), n);
     }
+    if(out && out.error === 'hidden'){
+      monthHidden = true;
+      try{ localStorage.removeItem(lsKey(key)); }catch(e){}   // ukryty miesiąc nie zostaje w telefonie
+      return blankMonth(n);
+    }
+    if(out && out.error === 'auth') return blankMonth(n);
   }catch(e){ console.warn('brak połączenia z Arkuszem, używam lokalnej kopii:', e); }
-  const raw = localStorage.getItem(key);
+  const raw = localStorage.getItem(lsKey(key));
   if(raw){
     try{ return migrateOld(JSON.parse(raw), n); }catch(e){}
   }
-  const arr = [];
-  for(let d=1; d<=n; d++) arr.push(emptyDay());
-  return arr;
+  return blankMonth(n);
 }
 
 let monthData = [];
 
 function saveMonth(){
+  if(monthHidden) return;
   const key = storageKey(curYear,curMonth);
   const json = JSON.stringify(monthData);
-  localStorage.setItem(key, json);
+  localStorage.setItem(lsKey(key), json);
   cloudMirror(key, json);
   const tag = document.getElementById('savetag');
   tag.textContent = 'zapisywanie...';
@@ -312,41 +580,60 @@ function saveMonth(){
   saveMonth._t = setTimeout(()=>tag.classList.remove('show'), 1200);
 }
 
-function setStatusDot(ok){
+function setStatusDot(state){
   const dot = document.getElementById('statusDot');
-  dot.classList.remove('ok','fail');
-  dot.classList.add(ok?'ok':'fail');
-  dot.title = ok ? 'Połączenie z Arkuszem: OK' : 'Brak połączenia z Arkuszem (offline / dane tylko lokalnie)';
+  dot.classList.remove('ok','fail','local');
+  dot.classList.add(state);
+  dot.title = state==='ok' ? 'Połączenie z Arkuszem: OK'
+    : state==='local' ? 'Brak zasięgu — dane tylko lokalnie, appka sama dogoni po powrocie sieci'
+    : 'Błąd połączenia z Arkuszem';
 }
 
 // Auto-check on load: harmless read of a key that (almost certainly) doesn't
 // exist, just to confirm the endpoint responds.
 async function checkConnection(){
   try{
-    const res = await fetch(`${GAS_URL}?key=__ping__`);
-    setStatusDot(res.ok);
+    const out = await api('me');
+    setStatusDot(out && out.ok ? 'ok' : 'fail');
   }catch(e){
-    setStatusDot(false);
+    setStatusDot('local');
   }
 }
 document.getElementById('statusDot').addEventListener('click', checkConnection);
 
+const pendingSyncKeys = new Set();
+
 async function cloudMirror(key, json){
   const tag = document.getElementById('savetag');
   try{
-    await fetch(GAS_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
-      body: JSON.stringify({key, value: json})
-    });
-    tag.textContent = 'zapisano w Arkuszu';
-    setStatusDot(true);
+    const out = await api('set', {key: key, value: json});
+    if(out && out.ok){
+      tag.textContent = 'zapisano w Arkuszu';
+      setStatusDot('ok');
+      pendingSyncKeys.delete(key);
+    } else if(out && out.error === 'hidden'){
+      tag.textContent = 'miesiąc niedostępny — nie zapisano';
+    } else {
+      tag.textContent = 'zapisano lokalnie (nie zsynchronizowano)';
+      setStatusDot('fail');
+      pendingSyncKeys.add(key);
+    }
   }catch(e){
     tag.textContent = 'zapisano lokalnie (offline)';
-    setStatusDot(false);
+    setStatusDot('local');
+    pendingSyncKeys.add(key);
     console.warn('zapis do Arkusza nieudany:', e);
   }
 }
+
+// Appka wraca online (np. serwisant wyjeżdża z terenu bez zasięgu) — sama
+// dogania zaległe miesiące, bez potrzeby dotykania ich ponownie ręcznie.
+window.addEventListener('online', () => {
+  pendingSyncKeys.forEach(key => {
+    const json = localStorage.getItem(lsKey(key));
+    if(json != null) cloudMirror(key, json);
+  });
+});
 
 function timeToMinutes(t){ if(!t) return 0; const [h,m]=t.split(':').map(Number); return h*60+m; }
 function fmtHM(mins){ const s = mins<0?'-':''; mins=Math.abs(Math.round(mins)); return `${s}${Math.floor(mins/60)}:${String(mins%60).padStart(2,'0')}`; }
@@ -354,30 +641,52 @@ function isWeekend(y,m,d){ const wd = new Date(y,m-1,d).getDay(); return wd===0|
 
 // Unwraps a day's blocks into chronological effective minutes, auto-detecting
 // overnight crossings (end <= start rolls to the next day, cascading).
-function computeEffectiveBlocks(blocks){
-  let cursor = 0;
+// allowWrap = the day's "Praca w nocy" switch. With it on, a time earlier than
+// the previous one means "next day" (21:00–03:00). With it off the same input
+// is treated as a typo: the block gets an error, is not counted, and does not
+// move the cursor — so one wrong digit can no longer add ~20h of "dojazd".
+function computeEffectiveBlocks(blocks, allowWrap){
+  let cursor = 0, prevEnd = '';
   return blocks.map(b=>{
-    if(!b.start || !b.end) return {startEff:null,endEff:null,wrappedStart:false,wrappedEnd:false};
+    const none = {startEff:null,endEff:null,wrappedStart:false,wrappedEnd:false};
+    if(!b.start || !b.end) return none;
     let s = timeToMinutes(b.start);
     let wrappedStart=false;
-    while(s < cursor){ s += 1440; wrappedStart=true; }
+    if(s < cursor){
+      if(!allowWrap) return Object.assign(none, {error:'start', prevEnd});
+      while(s < cursor){ s += 1440; wrappedStart=true; }
+    }
     let e = timeToMinutes(b.end);
     let wrappedEnd=false;
-    while(e <= s){ e += 1440; wrappedEnd=true; }
-    cursor = e;
+    if(e <= s){
+      if(!allowWrap) return Object.assign(none, {error:'end', prevEnd});
+      while(e <= s){ e += 1440; wrappedEnd=true; }
+    }
+    cursor = e; prevEnd = b.end;
     return {startEff:s, endEff:e, wrappedStart, wrappedEnd};
   });
 }
+function blockErrorText(w, b){
+  if(!w || !w.error) return '';
+  const fix = ' Popraw godzinę albo włącz „Praca w nocy”. Ten wpis nie jest liczony.';
+  return w.error==='start'
+    ? `Start ${b.start} jest wcześniej niż koniec poprzedniego wpisu (${w.prevEnd}).${fix}`
+    : `Koniec ${b.end} nie jest później niż start ${b.start}.${fix}`;
+}
 
 function dayStats(d){
-  if(d.dayType==='urlop') return {biuro:0,obiekt:0,wizja:0,dojazd:0,przerwa:0,worked:0};
-  const eff = computeEffectiveBlocks(d.blocks);
-  let biuro=0,obiekt=0,wizja=0,dojazd=0,przerwa=0;
+  if(d.dayType==='urlop') return {biuro:0,obiekt:0,wizja:0,organizacja:0,dojazd:0,przerwa:0,worked:0};
+  const eff = computeEffectiveBlocks(d.blocks, !!d.nocna);
+  let biuro=0,obiekt=0,wizja=0,organizacja=0,dojazd=0,przerwa=0;
   eff.forEach((b,i)=>{
     if(b.startEff==null) return;
     const dur = b.endEff - b.startEff;
     const kind = d.blocks[i].kind;
-    if(kind==='biuro') biuro+=dur; else if(kind==='wizja') wizja+=dur; else obiekt+=dur;
+    if(kind==='biuro') biuro+=dur;
+    else if(kind==='wizja') wizja+=dur;
+    else if(kind==='organizacja') organizacja+=dur;
+    else if(kind==='dojazd') dojazd+=dur;
+    else obiekt+=dur;
   });
   for(let i=0;i<eff.length-1;i++){
     if(eff[i].endEff==null || eff[i+1].startEff==null) continue;
@@ -386,7 +695,7 @@ function dayStats(d){
     const type = d.blocks[i].gapAfter || 'dojazd';
     if(type==='przerwa') przerwa+=gap; else dojazd+=gap;
   }
-  return {biuro,obiekt,wizja,dojazd,przerwa,worked:biuro+obiekt+wizja+dojazd};
+  return {biuro,obiekt,wizja,organizacja,dojazd,przerwa,worked:biuro+obiekt+wizja+organizacja+dojazd};
 }
 
 function dayWorkedMinutes(d){ return dayStats(d).worked; }
@@ -449,10 +758,11 @@ function workdaysCount(y,m){
 }
 
 function loadSettings(){
-  try{ return JSON.parse(localStorage.getItem('karta_godzin_ustawienia')) || {biuro:true,obiekt:true,wizja:true}; }
-  catch(e){ return {biuro:true,obiekt:true,wizja:true}; }
+  const def = {biuro:true,obiekt:true,wizja:true,organizacja:true,avgMode:'norma'};
+  try{ return Object.assign(def, JSON.parse(localStorage.getItem(lsKey('karta_godzin_ustawienia'))) || {}); }
+  catch(e){ return def; }
 }
-function saveSettings(s){ localStorage.setItem('karta_godzin_ustawienia', JSON.stringify(s)); }
+function saveSettings(s){ localStorage.setItem(lsKey('karta_godzin_ustawienia'), JSON.stringify(s)); }
 let settings = loadSettings();
 
 function monthNormaDefault(){ return workdaysCount(curYear,curMonth) * 8 * 60; }
@@ -464,23 +774,31 @@ function ensureMeta(){ if(!monthData._meta) monthData._meta = {normaOverride:nul
 ensureMeta();
 
 function computeTotals(){
-  let biuro=0,obiekt=0,wizja=0,dojazd=0,przerwa=0,urlopDays=0,filledDays=0;
+  let biuro=0,obiekt=0,wizja=0,organizacja=0,dojazd=0,przerwa=0,urlopDays=0,filledDays=0,lastFilled=-1;
   const n = daysInMonth(curYear,curMonth);
   for(let i=0;i<n;i++){
     const d = monthData[i];
     if(!d || !d.dayType) continue;
     if(d.dayType==='urlop'){ urlopDays++; continue; }
     const st = dayStats(d);
-    biuro+=st.biuro; obiekt+=st.obiekt; wizja+=st.wizja; dojazd+=st.dojazd; przerwa+=st.przerwa;
-    if(st.worked>0) filledDays++;
+    biuro+=st.biuro; obiekt+=st.obiekt; wizja+=st.wizja; organizacja+=st.organizacja; dojazd+=st.dojazd; przerwa+=st.przerwa;
+    if(st.worked>0){ filledDays++; lastFilled = i; }
   }
-  const worked = biuro+obiekt+wizja+dojazd; // dojazd counts unconditionally
-  const included = (settings.biuro?biuro:0)+(settings.obiekt?obiekt:0)+(settings.wizja?wizja:0)+dojazd;
+  // Normative workdays (no weekends, holidays or urlop) from the 1st up to the
+  // last day with an entry — the denominator for the "vs 8h norm" daily average.
+  let normDaysElapsed = 0;
+  for(let i=0;i<=lastFilled;i++){
+    if(isWeekend(curYear,curMonth,i+1) || getHolidayName(curYear,curMonth,i+1)) continue;
+    if(monthData[i] && monthData[i].dayType==='urlop') continue;
+    normDaysElapsed++;
+  }
+  const worked = biuro+obiekt+wizja+organizacja+dojazd; // dojazd counts unconditionally
+  const included = (settings.biuro?biuro:0)+(settings.obiekt?obiekt:0)+(settings.wizja?wizja:0)+(settings.organizacja?organizacja:0)+dojazd;
   const norma = monthNormaOverride() ?? monthNormaDefault();
   const urlopH = urlopDays*8*60;
   const wymagane = Math.max(0, norma - urlopH);
   const bilans = included - wymagane;
-  return {biuro,obiekt,wizja,dojazd,przerwa,worked,included,norma,urlopH,wymagane,bilans,filledDays,urlopDays};
+  return {biuro,obiekt,wizja,organizacja,dojazd,przerwa,worked,included,norma,urlopH,wymagane,bilans,filledDays,urlopDays,normDaysElapsed};
 }
 
 function updateSummary(){
@@ -489,8 +807,15 @@ function updateSummary(){
   document.getElementById('sBiuro').textContent = fmtHM(t.biuro);
   document.getElementById('sObiekt').textContent = fmtHM(t.obiekt);
   document.getElementById('sWizja').textContent = fmtHM(t.wizja);
+  document.getElementById('sOrganizacja').textContent = fmtHM(t.organizacja);
   document.getElementById('sDojazd').textContent = fmtHM(t.dojazd);
   document.getElementById('sPrzerwa').textContent = fmtHM(t.przerwa);
+  // share of each zone in all worked time (the five zones add up to 100%)
+  [['Biuro',t.biuro],['Obiekt',t.obiekt],['Wizja',t.wizja],['Organizacja',t.organizacja],['Dojazd',t.dojazd]].forEach(([id,v])=>{
+    const share = t.worked>0 ? v/t.worked*100 : 0;
+    document.getElementById('p'+id).textContent = t.worked>0 ? Math.round(share)+'%' : '';
+    document.getElementById('b'+id).style.width = share.toFixed(1)+'%';
+  });
   document.getElementById('sWorkdays').textContent = workdaysCount(curYear,curMonth);
   document.getElementById('sUrlopH').textContent = `${t.urlopDays} d — ${fmtHM(t.urlopH)}`;
   document.getElementById('sWymagane').textContent = fmtHM(t.wymagane);
@@ -537,31 +862,41 @@ function updateCondensedPanel(t){
   document.getElementById('condEff').textContent = t.wymagane>0 ? Math.round(t.included/t.wymagane*100)+'%' : '—';
   document.getElementById('condFilled').textContent = `${t.filledDays} / ${workdaysCount(curYear,curMonth)}`;
 
+  // Daily average, two modes (tap the chip to switch):
+  //  'norma' — whole sum / normative workdays so far  → compare against 8:00
+  //  'real'  — whole sum / all days with an entry (Saturdays count as days)
+  const avgReal = settings.avgMode==='real';
+  const avgDays = avgReal ? t.filledDays : t.normDaysElapsed;
+  document.getElementById('condAvgLabel').textContent = avgReal ? 'śr./dzień prac. ⇄' : 'śr./dzień rob. ⇄';
+  document.getElementById('condAvg').textContent = avgDays>0 ? `${fmtHM(Math.round(t.included/avgDays))} · ${avgDays} d` : '—';
+
   const pct = URLOP_LIMIT>0 ? Math.round(yearlyUrlopUsed/URLOP_LIMIT*100) : 0;
   document.getElementById('condUrlopChip').textContent = `${yearlyUrlopUsed}/${URLOP_LIMIT} (${pct}%)`;
 }
 
+// Instant local correction when toggling a day's type — no network round-trip,
+// so the chip is right immediately instead of racing the background save.
+function bumpYearlyUrlop(wasUrlop, isUrlopNow){
+  if(wasUrlop === isUrlopNow) return;
+  yearlyUrlopUsed += isUrlopNow ? 1 : -1;
+  if(yearlyUrlopUsed < 0) yearlyUrlopUsed = 0;
+  updateCondensedPanel();
+}
+
 // Sums urlop days across all 12 months of the year from the Google Sheet,
 // so the yearly counter is correct regardless of which month is open.
+// Used for page load / month navigation / import / clear — not for single
+// day toggles (see bumpYearlyUrlop above, which avoids a race with the save).
 async function refreshYearlyUrlop(){
-  const year = curYear;
-  const keys = [];
-  for(let m=1;m<=12;m++) keys.push(storageKey(year,m));
   try{
-    const texts = await Promise.all(keys.map(k=>
-      fetch(`${GAS_URL}?key=${k}`).then(r=>r.ok?r.text():'').catch(()=>'')
-    ));
-    let total = 0;
-    texts.forEach(text=>{
-      if(!text || !text.trim()) return;
-      try{
-        const arr = migrateOld(JSON.parse(text), 31);
-        arr.forEach(d=>{ if(d && d.dayType==='urlop') total++; });
-      }catch(e){}
-    });
-    yearlyUrlopUsed = total;
+    const out = await api('urlopYear', {year: curYear});
+    if(out && out.ok){
+      yearUrlopCounts = out.counts;
+      yearlyUrlopUsed = out.counts.reduce((a,b)=>a+b, 0);
+    }
   }catch(e){ console.warn('nie udało się policzyć urlopu rocznego:', e); }
   updateCondensedPanel();
+  if(monthHidden) render();
 }
 
 function updateDayBadge(dayNum){
@@ -578,7 +913,8 @@ function updateDayBadge(dayNum){
     cardEl.classList.add('urlop');
   } else {
     const mins = dayWorkedMinutes(d);
-    badge.textContent = mins>0 ? fmtHM(mins) : '—';
+    const hasErr = computeEffectiveBlocks(d.blocks, !!d.nocna).some(w=>w.error);
+    badge.textContent = (hasErr?'⚠ ':'') + (mins>0 ? fmtHM(mins) : '—');
     badge.className = 'day-hours' + (mins===0?' zero':'');
     cardEl.classList.remove('urlop');
     const wd = new Date(curYear,curMonth-1,dayNum).getDay();
@@ -596,13 +932,17 @@ function updateDayBadge(dayNum){
 function refreshDayDerived(dayNum){
   const d = monthData[dayNum-1];
   if(d.dayType==='urlop') return;
-  const eff = computeEffectiveBlocks(d.blocks);
+  const eff = computeEffectiveBlocks(d.blocks, !!d.nocna);
+  const canInsert = d.blocks.length < MAX_BLOCKS;
 
   d.blocks.forEach((b,i)=>{
-    const tag = document.getElementById(`wraptag-${dayNum}-${i}`);
-    if(!tag) return;
     const w = eff[i];
-    tag.textContent = (w && (w.wrappedStart || w.wrappedEnd)) ? '🌙 przechodzi na kolejny dzień' : '';
+    const tag = document.getElementById(`wraptag-${dayNum}-${i}`);
+    if(tag) tag.textContent = (w && (w.wrappedStart || w.wrappedEnd)) ? '🌙 przechodzi na kolejny dzień' : '';
+    const err = document.getElementById(`blockerr-${dayNum}-${i}`);
+    if(err) err.textContent = blockErrorText(w, b);
+    const bar = document.querySelector(`#body-${dayNum} .block[data-block="${i}"] .blockbar`);
+    if(bar) bar.classList.toggle('err', !!(w && w.error));
   });
 
   for(let i=0;i<d.blocks.length-1;i++){
@@ -610,20 +950,27 @@ function refreshDayDerived(dayNum){
     if(!wrap) continue;
     const a = eff[i], bnext = eff[i+1];
     if(!a || !bnext || a.endEff==null || bnext.startEff==null || bnext.startEff - a.endEff <= 0){
-      wrap.innerHTML = '';
+      // no countable gap here — just offer inserting an entry at this position
+      wrap.innerHTML = canInsert ? `<div class="insline"><button data-act="insert">＋ wstaw wpis</button></div>` : '';
+      const ins = wrap.querySelector('[data-act="insert"]');
+      if(ins) ins.addEventListener('click', ()=>insertBlockAfter(dayNum, i, false));
       continue;
     }
     const gap = bnext.startEff - a.endEff;
     const type = d.blocks[i].gapAfter || 'dojazd';
+    const compact = blockUI.day===dayNum && blockUI.open[i]===false && blockUI.open[i+1]===false;
     wrap.innerHTML = `
-      <div class="gapbox">
-        <div class="gaplabel">Przerwa między przedziałami: ${fmtHM(gap)}</div>
+      <div class="gapbox${compact?' compact':''}">
+        <div class="gaplabel">${compact?'↕ ':'Przerwa między przedziałami: '}${fmtHM(gap)}</div>
         <div class="gaptoggle ${type}" data-day="${dayNum}" data-gap="${i}">
           <div class="knob"></div>
           <button data-val="dojazd" class="${type==='dojazd'?'active':''}">🚗 Dojazd</button>
-          <button data-val="przerwa" class="${type==='przerwa'?'active':''}">☕ Przerwa</button>
+          <button data-val="przerwa" class="${type==='przerwa'?'active':''}">${compact?'☕ Nie licz':'☕ Przerwa (nie licz)'}</button>
         </div>
+        ${canInsert?`<button class="gapins" data-act="gapinsert">＋ wpis</button>`:''}
       </div>`;
+    const gi = wrap.querySelector('[data-act="gapinsert"]');
+    if(gi) gi.addEventListener('click', ()=>insertBlockAfter(dayNum, i, true));
     wrap.querySelectorAll('.gaptoggle button').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         d.blocks[i].gapAfter = btn.dataset.val;
@@ -634,6 +981,24 @@ function refreshDayDerived(dayNum){
       });
     });
   }
+}
+
+// Inserts an entry between block i and i+1. From a gap chip the new entry is a
+// ready Dojazd spanning exactly that gap (same total as the automatic gap, but
+// now editable/commentable); otherwise it is a blank entry starting where the
+// previous one ended — the way to fix a wrong order without deleting anything.
+function insertBlockAfter(dayNum, i, fromGap){
+  const d = monthData[dayNum-1];
+  if(d.blocks.length >= MAX_BLOCKS) return;
+  const prev = d.blocks[i], next = d.blocks[i+1];
+  d.blocks.splice(i+1, 0, {
+    start: prev.end || '',
+    end: fromGap ? (next.start || '') : '',
+    kind: fromGap ? 'dojazd' : 'obiekt',
+    komentarz:'', gapAfter:'dojazd'
+  });
+  if(blockUI.day===dayNum) blockUI.open.splice(i+1, 0, !fromGap);
+  saveMonth(); renderBody(dayNum, true); updateDayBadge(dayNum); updateSummary();
 }
 
 function getWeekDates(date){
@@ -714,6 +1079,8 @@ function appendCrossRow(container, dateObj){
 function render(){
   updateMonthLabel();
   const container = document.getElementById('days');
+  document.getElementById('viewDays').style.display = (currentTab==='days' && !monthHidden) ? '' : 'none';
+  if(monthHidden){ container.innerHTML = hiddenBoxHtml(); return; }
   container.innerHTML = '';
   const n = daysInMonth(curYear,curMonth);
 
@@ -730,7 +1097,14 @@ function render(){
   updateSummary();
 }
 
-function renderBody(dayNum){
+const MAX_BLOCKS = 12;
+// Which blocks of the open day are expanded. UI-only state — never saved, so
+// the stored data format is unchanged. Reset whenever a day is (re)opened:
+// blocks with both times filled start collapsed, unfinished ones expanded.
+const blockUI = {day:null, open:[]};
+function blockComplete(b){ return !!(b.start && b.end); }
+
+function renderBody(dayNum, keepUI){
   const d = monthData[dayNum-1];
   const body = document.getElementById(`body-${dayNum}`);
   if(!body) return;
@@ -745,9 +1119,10 @@ function renderBody(dayNum){
     body.innerHTML = html;
     body.querySelectorAll('[data-act^="type-"]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
+        const wasUrlop = d.dayType === 'urlop';
         d.dayType = btn.dataset.act === 'type-urlop' ? 'urlop' : 'praca';
         saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
-        refreshYearlyUrlop();
+        bumpYearlyUrlop(wasUrlop, d.dayType==='urlop');
       });
     });
     const ta = body.querySelector('.urlop-komentarz');
@@ -759,10 +1134,34 @@ function renderBody(dayNum){
     return;
   }
 
+  if(d.nocna===undefined) d.nocna = false; // legacy days were flagged on load
+  const effBar = computeEffectiveBlocks(d.blocks, !!d.nocna);
+  if(!keepUI || blockUI.day!==dayNum || blockUI.open.length!==d.blocks.length){
+    blockUI.day = dayNum;
+    blockUI.open = d.blocks.map((b,i)=>!blockComplete(b) || !!effBar[i].error);
+  }
+  html += `<label class="nightrow"><span>🌙 Praca w nocy (po północy)</span><input type="checkbox" data-act="nocna" ${d.nocna?'checked':''}></label>`;
+
   d.blocks.forEach((b, bi) => {
+    if(!blockUI.open[bi]){
+      const w = effBar[bi];
+      const dur = (w && w.startEff!=null) ? fmtHM(w.endEff - w.startEff) : (w && w.error ? '⚠' : '');
+      html += `<div class="block collapsed" data-block="${bi}">
+        <div class="blockbar${effBar[bi].error?' err':''}" data-act="expand">
+          <span class="bb-kind" data-kind="${b.kind}">${KIND_LABEL[b.kind]||KIND_LABEL.obiekt}</span>
+          <span class="bb-time">${b.start}–${b.end}</span>
+          <span class="bb-dur">${dur}</span>
+          <span class="bb-kom">${escapeHtml(b.komentarz||'')}</span>
+          <span class="bb-chev">✎</span>
+        </div>
+      </div>
+      <div class="gapwrap" id="gapwrap-${dayNum}-${bi}"></div>`;
+      return;
+    }
     html += `<div class="block" data-block="${bi}">
+      ${blockComplete(b) && !effBar[bi].error?'<button class="block-collapse" data-act="collapse">zwiń ▾</button>':''}
       <div class="block-kind">
-        ${['biuro','obiekt','wizja'].map(k=>`<button data-kind="${k}" data-act="kind" class="${b.kind===k?'active':''}">${KIND_LABEL[k]}</button>`).join('')}
+        ${['biuro','obiekt','wizja','organizacja','dojazd'].map(k=>`<button data-kind="${k}" data-act="kind" class="${b.kind===k?'active':''}">${KIND_LABEL[k]}</button>`).join('')}
       </div>
       <div class="block-row">
         <input type="time" data-field="start" value="${b.start||''}">
@@ -771,11 +1170,12 @@ function renderBody(dayNum){
         ${d.blocks.length>1?'<button class="rmblock" data-act="rmblock">✕</button>':''}
       </div>
       <div class="wraptag" id="wraptag-${dayNum}-${bi}"></div>
+      <div class="blockerr" id="blockerr-${dayNum}-${bi}"></div>
       <input type="text" class="block-komentarz" data-field="komentarz" placeholder="Co robiłem w tym przedziale..." value="${escapeAttr(b.komentarz||'')}">
     </div>
     <div class="gapwrap" id="gapwrap-${dayNum}-${bi}"></div>`;
   });
-  if(d.blocks.length < 4){
+  if(d.blocks.length < MAX_BLOCKS){
     html += `<button class="addblock" data-act="addblock">+ kolejny przedział</button>`;
   }
 
@@ -783,21 +1183,47 @@ function renderBody(dayNum){
 
   body.querySelectorAll('[data-act^="type-"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      const wasUrlop = d.dayType === 'urlop';
       d.dayType = btn.dataset.act === 'type-urlop' ? 'urlop' : 'praca';
       saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
-      refreshYearlyUrlop();
+      bumpYearlyUrlop(wasUrlop, d.dayType==='urlop');
     });
   });
 
-  // kind buttons — in-place class toggle only, no rebuild
+  // kind buttons — in-place class toggle only, no rebuild.
+  // Switching a block to "Dojazd" auto-fills its start from the previous
+  // block's end (if empty) — no need to invent a fake destination block just
+  // to make the drive-home time count.
   body.querySelectorAll('[data-act="kind"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const blockEl = btn.closest('.block');
       const bi = parseInt(blockEl.dataset.block);
       d.blocks[bi].kind = btn.dataset.kind;
+      if(btn.dataset.kind==='dojazd' && !d.blocks[bi].start && bi>0 && d.blocks[bi-1].end){
+        d.blocks[bi].start = d.blocks[bi-1].end;
+        saveMonth();
+        renderBody(dayNum, true); updateDayBadge(dayNum); updateSummary();
+        return;
+      }
       saveMonth();
       blockEl.querySelectorAll('.block-kind button').forEach(bb=>bb.classList.toggle('active', bb.dataset.kind===d.blocks[bi].kind));
       updateDayBadge(dayNum); updateSummary();
+    });
+  });
+
+  const nightChk = body.querySelector('[data-act="nocna"]');
+  if(nightChk){
+    nightChk.addEventListener('change', (e)=>{
+      d.nocna = e.target.checked;
+      saveMonth(); renderBody(dayNum, true); updateDayBadge(dayNum); updateSummary();
+    });
+  }
+
+  body.querySelectorAll('[data-act="expand"],[data-act="collapse"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const bi = parseInt(btn.closest('.block').dataset.block);
+      blockUI.open[bi] = btn.dataset.act==='expand';
+      renderBody(dayNum, true);
     });
   });
 
@@ -806,15 +1232,21 @@ function renderBody(dayNum){
       const blockEl = btn.closest('.block');
       const bi = parseInt(blockEl.dataset.block);
       d.blocks.splice(bi,1);
-      saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
+      blockUI.open.splice(bi,1);
+      saveMonth(); renderBody(dayNum, true); updateDayBadge(dayNum); updateSummary();
     });
   });
 
   const addBtn = body.querySelector('[data-act="addblock"]');
   if(addBtn){
     addBtn.addEventListener('click', ()=>{
-      d.blocks.push({start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'});
-      saveMonth(); renderBody(dayNum); updateDayBadge(dayNum); updateSummary();
+      // finished blocks fold into bars so the new entry is the only thing open
+      blockUI.open = d.blocks.map((b,i)=> blockComplete(b) ? false : blockUI.open[i]!==false);
+      // the next entry starts where the previous one ended
+      const last = d.blocks[d.blocks.length-1];
+      d.blocks.push({start:(last && last.end) || '',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'});
+      blockUI.open.push(true);
+      saveMonth(); renderBody(dayNum, true); updateDayBadge(dayNum); updateSummary();
     });
   }
 
@@ -849,6 +1281,7 @@ function escapeAttr(s){ return escapeHtml(s); }
 
 function renderUrlopyTab(){
   const box = document.getElementById('viewUrlopy');
+  if(monthHidden){ box.innerHTML = hiddenBoxHtml(); return; }
   const n = daysInMonth(curYear,curMonth);
   const items = [];
   for(let dayNum=1; dayNum<=n; dayNum++){
@@ -873,7 +1306,7 @@ function switchTab(tab){
   document.getElementById('tabDays').classList.toggle('active', tab==='days');
   document.getElementById('tabUrlopy').classList.toggle('active', tab==='urlopy');
   document.getElementById('tabUrlopRok').classList.toggle('active', tab==='urlopRok');
-  document.getElementById('viewDays').style.display = tab==='days' ? '' : 'none';
+  document.getElementById('viewDays').style.display = (tab==='days' && !monthHidden) ? '' : 'none';
   document.getElementById('days').style.display = tab==='days' ? '' : 'none';
   document.getElementById('viewUrlopy').style.display = tab==='urlopy' ? '' : 'none';
   document.getElementById('viewUrlopRok').style.display = tab==='urlopRok' ? '' : 'none';
@@ -886,26 +1319,15 @@ document.getElementById('tabUrlopRok').addEventListener('click', ()=>switchTab('
 // Pulls all 12 months of the given year from the Sheet and returns both the
 // flat list of urlop days (for page 1) and per-month counts (for the chart).
 async function fetchYearUrlopDetails(year){
-  const keys = [];
-  for(let m=1;m<=12;m++) keys.push(storageKey(year,m));
-  const texts = await Promise.all(keys.map(k=>
-    fetch(`${GAS_URL}?key=${k}`).then(r=>r.ok?r.text():'').catch(()=>'')
-  ));
   const perMonth = new Array(12).fill(0);
   const items = [];
-  texts.forEach((text, idx)=>{
-    const m = idx+1;
-    if(!text || !text.trim()) return;
-    try{
-      const arr = migrateOld(JSON.parse(text), daysInMonth(year,m));
-      arr.forEach((d,i)=>{
-        if(d && d.dayType==='urlop'){
-          perMonth[idx]++;
-          items.push({month:m, day:i+1, komentarz:d.urlopKomentarz||''});
-        }
-      });
-    }catch(e){}
-  });
+  try{
+    const out = await api('urlopYear', {year: year});
+    if(out && out.ok){
+      out.counts.forEach((c,i)=>{ perMonth[i] = c; });
+      out.items.forEach(it=>items.push(it));
+    }
+  }catch(e){}
   return {perMonth, items};
 }
 
@@ -916,7 +1338,7 @@ async function renderUrlopRokTab(){
   chartPage.innerHTML = '';
 
   const {perMonth, items} = await fetchYearUrlopDetails(curYear);
-  const total = items.length;
+  const total = perMonth.reduce((a,b)=>a+b, 0);
 
   // Page 1 — full-year list, grouped by month.
   if(total===0){
@@ -925,8 +1347,9 @@ async function renderUrlopRokTab(){
     let html = `<div class="urlop-rok-total"><b>${total}</b> / ${URLOP_LIMIT} dni urlopu wykorzystane w ${curYear}</div>`;
     for(let m=1; m<=12; m++){
       const monthItems = items.filter(it=>it.month===m);
-      if(monthItems.length===0) continue;
-      html += `<div class="urlop-rok-month-head">${MONTH_NAMES[m-1]} — ${monthItems.length} d.</div>`;
+      if(perMonth[m-1]===0) continue;
+      html += `<div class="urlop-rok-month-head">${MONTH_NAMES[m-1]} — ${perMonth[m-1]} d.</div>`;
+      if(monthItems.length===0) html += `<div class="urlop-item"><div class="ui-comment">Szczegóły niedostępne (miesiąc ukryty przez administratora)</div></div>`;
       monthItems.forEach(it=>{
         const wd = new Date(curYear,m-1,it.day).getDay();
         html += `<div class="urlop-item">
@@ -973,7 +1396,7 @@ document.getElementById('detailOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'detailOverlay') e.target.classList.remove('open');
 });
 
-['chkBiuro','chkObiekt','chkWizja'].forEach(id=>{
+['chkBiuro','chkObiekt','chkWizja','chkOrganizacja'].forEach(id=>{
   document.getElementById(id).addEventListener('change', (e)=>{
     const key = id.replace('chk','').toLowerCase();
     settings[key] = e.target.checked;
@@ -984,6 +1407,12 @@ document.getElementById('detailOverlay').addEventListener('click', (e)=>{
 document.getElementById('chkBiuro').checked = settings.biuro;
 document.getElementById('chkObiekt').checked = settings.obiekt;
 document.getElementById('chkWizja').checked = settings.wizja;
+document.getElementById('chkOrganizacja').checked = settings.organizacja;
+document.getElementById('condAvgChip').addEventListener('click', ()=>{
+  settings.avgMode = settings.avgMode==='real' ? 'norma' : 'real';
+  saveSettings(settings);
+  updateCondensedPanel();
+});
 
 document.getElementById('inpNorma').addEventListener('change', (e)=>{
   ensureMeta();
@@ -1037,22 +1466,13 @@ function excelFracToTime(v){
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 }
 
-document.getElementById('importFile').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  if(!confirm(`Zaimportować dane do ${MONTH_NAMES[curMonth-1]} ${curYear}? To nadpisze to, co masz teraz wpisane w tym miesiącu w aplikacji.`)){
-    e.target.value=''; return;
-  }
-  try{
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:'array'});
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const n = daysInMonth(curYear,curMonth);
-    const arr = [];
+function xlsxToMonthArray(sheet, y, m){
+  const n = daysInMonth(y, m);
+  const arr = [];
     for(let i=0;i<n;i++){
       const r = 3+i;
       const get = (col)=> sheet[`${col}${r}`];
-      const pairs = [[get('B'),get('C')],[get('D'),get('E')],[get('F'),get('G')]];
+      const pairs = XLSX_SPAN_COLS.map(([sc,ec])=>[get(sc),get(ec)]);
       const blocks = [];
       pairs.forEach(([s,en])=>{
         if(s && en && typeof s.v==='number' && typeof en.v==='number'){
@@ -1072,8 +1492,24 @@ document.getElementById('importFile').addEventListener('change', async (e)=>{
         blocks[0].komentarz = opisText;
       }
       if(blocks.length===0) blocks.push({start:'',end:'',kind:'obiekt',komentarz:'',gapAfter:'dojazd'});
-      arr.push({dayType, urlopKomentarz, blocks});
+      const nocna = computeEffectiveBlocks(blocks, true).some(w=>w.wrappedStart||w.wrappedEnd);
+      arr.push({dayType, urlopKomentarz, nocna, blocks});
     }
+  return arr;
+}
+
+document.getElementById('importFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  if(monthHidden){ alert('Ten miesiąc jest niedostępny.'); e.target.value=''; return; }
+  if(!confirm(`Zaimportować dane do ${MONTH_NAMES[curMonth-1]} ${curYear}? To nadpisze to, co masz teraz wpisane w tym miesiącu w aplikacji.`)){
+    e.target.value=''; return;
+  }
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const arr = xlsxToMonthArray(sheet, curYear, curMonth);
     monthData = arr;
     ensureMeta();
     saveMonth();
@@ -1088,12 +1524,16 @@ document.getElementById('importFile').addEventListener('change', async (e)=>{
   e.target.value = '';
 });
 
-document.getElementById('btnExport').addEventListener('click', exportXlsx);
+// From–to column pairs in the .xlsx. B–G are the original 3-pair template; the
+// extra pairs sit to the right of "Uwagi" so the legacy layout (and old files)
+// keep working, and days with many przerwa-separated spans still add up.
+const XLSX_SPAN_COLS = [['B','C'],['D','E'],['F','G'],['U','V'],['W','X'],['Y','Z'],['AA','AB'],['AC','AD']];
+const XLSX_SUM_FORMULA = (r)=> XLSX_SPAN_COLS.map(([sc,ec])=>`(${ec}${r}-${sc}${r})`).join('+');
 
 // Merges dojazd-linked blocks into continuous paid spans; przerwa-linked gaps
 // stay as separate spans (unpaid, matches original 3-block Excel layout).
 function exportSpans(d){
-  const eff = computeEffectiveBlocks(d.blocks);
+  const eff = computeEffectiveBlocks(d.blocks, !!d.nocna);
   const spans = [];
   let cur = null;
   for(let i=0;i<eff.length;i++){
@@ -1116,15 +1556,15 @@ function exportSpans(d){
     }
   }
   if(cur) spans.push(cur);
-  return spans.slice(0,3);
+  return spans.slice(0, XLSX_SPAN_COLS.length);
 }
 
-function exportXlsx(){
+function buildSheet(forUser){
   const ws = {}; const merges = [];
   const setCell = (addr, value, opts) => { ws[addr] = Object.assign({v:value}, opts||{}); };
 
   setCell('A1','Rok',{t:'s'}); setCell('D1','Miesiąc',{t:'s'});
-  setCell('J1','Imię i Nazwisko',{t:'s'}); setCell('L1','PAWEŁ FUŁAWKA',{t:'s'});
+  setCell('J1','Imię i Nazwisko',{t:'s'}); setCell('L1',(forUser ? forUser.name : (auth && auth.user ? auth.user.name : '')).toUpperCase(),{t:'s'});
   setCell('O1','Stanowisko',{t:'s'}); setCell('R1','Wymiar czasu pracy',{t:'s'});
   merges.push('B1:C1','H1:I1','J1:K1','L1:N1','P1:Q1','R1:S1');
 
@@ -1132,7 +1572,8 @@ function exportXlsx(){
   setCell('I2','Czas przepracowany w godzinach',{t:'s'});
   setCell('M2','Czas nieobecności w pracy w dniach lub godzinach',{t:'s'});
   setCell('T2','Uwagi',{t:'s'});
-  merges.push('A2:B2','C2:H2','I2:L2','M2:S2');
+  setCell('U2','Czas pracy — dodatkowe przedziały',{t:'s'});
+  merges.push('A2:B2','C2:H2','I2:L2','M2:S2','U2:AD2');
 
   const n = daysInMonth(curYear, curMonth);
   for(let i=0; i<31; i++){
@@ -1144,19 +1585,18 @@ function exportXlsx(){
         setCell(`I${r}`, `Urlop${d.urlopKomentarz?': '+d.urlopKomentarz:''}`, {t:'s'});
       } else {
         const spans = exportSpans(d);
-        const cols = [['B','C'],['D','E'],['F','G']];
         spans.forEach((sp,bi)=>{
-          const [sc,ec] = cols[bi];
+          const [sc,ec] = XLSX_SPAN_COLS[bi];
           setCell(`${sc}${r}`, sp.start/1440, {t:'n', z:'h:mm'});
           setCell(`${ec}${r}`, sp.end/1440, {t:'n', z:'h:mm'});
         });
         const opis = composeOpis(d) || (isWeekend(curYear,curMonth,dayNum) ? (new Date(curYear,curMonth-1,dayNum).getDay()===0?'NDZ':'SB') : '');
         if(opis) setCell(`I${r}`, opis, {t:'s'});
       }
-      setCell(`H${r}`, null, {t:'n', z:'h:mm', f:`(C${r}-B${r})+(E${r}-D${r})+(G${r}-F${r})`});
+      setCell(`H${r}`, null, {t:'n', z:'h:mm', f:XLSX_SUM_FORMULA(r)});
     } else {
       setCell(`A${r}`, dayNum, {t:'n'});
-      setCell(`H${r}`, null, {t:'n', z:'h:mm', f:`(C${r}-B${r})+(E${r}-D${r})+(G${r}-F${r})`});
+      setCell(`H${r}`, null, {t:'n', z:'h:mm', f:XLSX_SUM_FORMULA(r)});
     }
     merges.push(`I${r}:S${r}`);
   }
@@ -1165,38 +1605,30 @@ function exportXlsx(){
   setCell('H34', null, {t:'n', z:'h:mm', f:'+SUM(H3:H33)'});
   merges.push('A35:T35');
 
-  ws['!ref'] = 'A1:T35';
+  ws['!ref'] = 'A1:AD35';
   ws['!merges'] = merges.map(XLSX.utils.decode_range);
   ws['!cols'] = [{wch:6},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7},{wch:7}];
 
+  return ws;
+}
+
+function buildWorkbook(forUser){
+  const ws = buildSheet(forUser);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Arkusz1');
   const yy = String(curYear).slice(-2);
-  const filename = `${curMonth}_${yy}_PF.xlsx`;
+  const filename = `${curMonth}_${yy}_${forUser ? forUser.id : userId()}.xlsx`;
+  return {wb, filename};
+}
 
-  try{
-    if(isIOS()){
-      // iOS Safari (zwłaszcza dla stron otwartych lokalnie z Plików) zwykle nie obsługuje
-      // poprawnie pobierania przez Blob/createObjectURL — używamy data: URI zamiast tego.
-      const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
-      const uri = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
-      const a = document.createElement('a');
-      a.href = uri;
-      a.download = filename;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(()=>{
-        alert('Jeśli plik nie zapisał się automatycznie: otworzy się podgląd — dotknij ikony udostępniania (⬆️) i wybierz "Zapisz w Plikach" lub "Otwórz w Numbers/Excel".');
-      }, 300);
-    } else {
-      XLSX.writeFile(wb, filename);
-    }
-  } catch(err){
-    alert('Eksport się nie udał: ' + err.message + '\n\nUżyj przycisku "Kopiuj" i wklej dane ręcznie do arkusza.');
-  }
+// Eksport przez Apps Script: plik ląduje tymczasowo na Dysku pod właściwą nazwą,
+// a appka dostaje zwykły link do pobrania (działa też w Chrome na iOS).
+async function uploadExport(wb, filename, forId){
+  const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
+  const out = await api('export', {name: filename, b64: b64, forId: forId});
+  if(out && out.error === 'forbidden') throw new Error('brak uprawnienia do eksportu');
+  if(!out || !out.ok || !out.url) throw new Error((out && out.error) || 'brak linku');
+  return out.url;
 }
 
 function isIOS(){
@@ -1204,13 +1636,640 @@ function isIOS(){
     || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
 }
 
-(async function init(){
+// Desktop: single tap, standard download, works reliably already.
+// iOS: data: URIs on a link do nothing (top-level data: navigation is blocked),
+// so the primary path is the native share sheet (navigator.share with a File),
+// which offers "Save to Files", WhatsApp, Mail. Fallback when the share sheet
+// is unavailable: two real taps on a genuine <a href> with a blob: URL — the
+// first tap only BUILDS the file and attaches it to the link (preventDefault),
+// the second is a real, unassisted click on an anchor with a real href.
+document.getElementById('btnExport').addEventListener('click', async function(e){
+  const tag = document.getElementById('btnExportTag');
+  if(!isIOS()){
+    e.preventDefault();
+    try{
+      const {wb, filename} = buildWorkbook();
+      XLSX.writeFile(wb, filename);
+    }catch(err){ alert('Eksport się nie udał: ' + err.message); }
+    return;
+  }
+  if(this.dataset.ready === '1'){
+    // Real href already set below — let the browser handle this tap natively.
+    const blobUrl = this.href;
+    setTimeout(()=>{
+      this.dataset.ready = '';
+      this.removeAttribute('href');
+      tag.textContent = 'xlsx';
+      this.classList.remove('pulse');
+      if(blobUrl.startsWith('blob:')){ try{ URL.revokeObjectURL(blobUrl); }catch(_){} }
+    }, 600);
+    return;
+  }
+  e.preventDefault();
+  try{
+    const {wb, filename} = buildWorkbook();
+    const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const bytes = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const file = new File([bytes], filename, {type: mime});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file], title: filename});
+        return;
+      }catch(err){
+        if(err && err.name === 'AbortError') return;
+      }
+    }
+    tag.textContent = 'wysyłam…';
+    try{
+      this.href = await uploadExport(wb, filename);
+      this.removeAttribute('download');
+    }catch(uerr){
+      if(/uprawnienia/.test(String(uerr && uerr.message))) throw uerr;
+      this.href = URL.createObjectURL(new Blob([bytes], {type: mime}));
+      this.setAttribute('download', filename);
+    }
+    this.dataset.ready = '1';
+    tag.textContent = 'pobierz!';
+    this.classList.add('pulse');
+  }catch(err){ tag.textContent = 'xlsx'; alert('Eksport się nie udał: ' + err.message); }
+});
+
+// ===== Ekran logowania, menu konta, panel administratora (v1.3) =====
+const $id = (i)=>document.getElementById(i);
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+function hiddenBoxHtml(){
+  const c = yearUrlopCounts[curMonth-1] || 0;
+  return `<div class="hiddenbox"><div class="hb-ico">🔒</div><div class="hb-t">Ten miesiąc jest niedostępny</div><div class="hb-s">Dostęp do starszej historii ustawia administrator.</div></div>
+    <div class="hiddenbox urlopbox"><div class="hb-row"><span>Urlop w tym miesiącu</span><b>${c} ${c===1?'dzień':'dni'}</b></div><div class="hb-s">Wliczone do rocznego licznika urlopu. Godzin i opisów nie widać.</div></div>`;
+}
+
+// ---------- logowanie ----------
+function showLogin(msg){
+  $id('loginScreen').style.display = 'block';
+  $id('lgErr').textContent = msg || '';
+  $id('lgPin').value = '';
+  try{ if(!$id('lgUser').value) $id('lgUser').value = localStorage.getItem('kg_last_user') || ''; }catch(e){}
+  setTimeout(()=>{ try{ ($id('lgUser').value ? $id('lgPin') : $id('lgUser')).focus(); }catch(e){} }, 60);
+}
+function hideLogin(){ $id('loginScreen').style.display = 'none'; }
+
+$id('lgForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const u = $id('lgUser').value.trim();
+  const pin = $id('lgPin').value.trim();
+  if(!u || !/^\d{4,10}$/.test(pin)){ $id('lgErr').textContent = 'Wpisz login i PIN (4-10 cyfr).'; return; }
+  const btn = $id('lgBtn');
+  btn.disabled = true; btn.textContent = 'Loguję…';
+  try{
+    const out = await api('login', {user: u, pin: pin});
+    if(out && out.ok){
+      saveAuth({token: out.token, user: out.user, expires: out.expires});
+      try{ localStorage.setItem('kg_last_user', out.user.id); }catch(_){}
+      hideLogin();
+      await startApp();
+    } else if(out && out.error === 'locked'){
+      const min = Math.max(1, Math.ceil((out.retryMs || 0) / 60000));
+      $id('lgErr').textContent = `Konto zablokowane. Spróbuj za ok. ${min} min albo poproś administratora o odblokowanie.`;
+    } else {
+      $id('lgErr').textContent = 'Zły login lub PIN.';
+    }
+  }catch(err){
+    $id('lgErr').textContent = 'Brak połączenia z serwerem. Spróbuj ponownie.';
+  }
+  btn.disabled = false; btn.textContent = 'Zaloguj';
+});
+
+// ---------- menu konta ----------
+function applyUserUI(){
+  const u = auth && auth.user;
+  $id('whoName').textContent = u ? u.name : '—';
+  $id('userChip').style.display = u ? '' : 'none';
+  if(u) $id('userChip').textContent = u.id + ' ▾';
+  $id('roleSw').style.display = isAdmin() ? '' : 'none';
+  $id('btnHub').style.display = isAdmin() ? '' : 'none';
+  $id('btnImport').style.display = (u && u.canImport) ? '' : 'none';
+  $id('btnExport').style.display = (u && u.canExport) ? '' : 'none';
+  $id('btnExportYear').style.display = (u && u.canExport) ? '' : 'none';
+}
+$id('userChip').addEventListener('click', (e)=>{ e.stopPropagation(); $id('userMenu').classList.toggle('open'); });
+$id('btnHub').addEventListener('click', ()=>{ location.href = 'https://heatcoolfulawkawro-ui.github.io/'; });
+document.addEventListener('click', ()=>$id('userMenu').classList.remove('open'));
+$id('mnLogout').addEventListener('click', async ()=>{
+  try{ await api('logout'); }catch(e){}
+  saveAuth(null);
+  location.reload();
+});
+$id('mnPin').addEventListener('click', ()=>{
+  $id('pmErr').textContent = '';
+  ['pmOld','pmNew','pmNew2'].forEach(i=>{ $id(i).value = ''; });
+  $id('pinModal').style.display = 'block';
+});
+$id('pmCancel').addEventListener('click', ()=>{ $id('pinModal').style.display = 'none'; });
+$id('pmForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  $id('pmErr').textContent = '';
+  const o = $id('pmOld').value.trim(), n1 = $id('pmNew').value.trim(), n2 = $id('pmNew2').value.trim();
+  if(!/^\d{4,10}$/.test(o) || !/^\d{4,10}$/.test(n1)){ $id('pmErr').textContent = 'PIN to 4-10 cyfr.'; return; }
+  if(n1 !== n2){ $id('pmErr').textContent = 'Nowy PIN i powtórzenie się różnią.'; return; }
+  if(n1 === o){ $id('pmErr').textContent = 'Nowy PIN musi być inny niż obecny.'; return; }
+  try{
+    const out = await api('changePin', {oldPin: o, newPin: n1});
+    if(!out || !out.ok){ $id('pmErr').textContent = 'Obecny PIN jest nieprawidłowy.'; return; }
+    // Serwer po zmianie PIN-u kończy wszystkie sesje — logujemy się od razu nowym PIN-em.
+    const lg = await api('login', {user: userId(), pin: n1});
+    if(lg && lg.ok) saveAuth({token: lg.token, user: lg.user, expires: lg.expires});
+    $id('pinModal').style.display = 'none';
+    alert('PIN zmieniony.');
+  }catch(err){ $id('pmErr').textContent = 'Brak połączenia z serwerem.'; }
+});
+
+// ---------- przełącznik Karta / Admin ----------
+let appMode = 'karta';
+function setMode(m){
+  appMode = m;
+  window.scrollTo(0, 0);      // nagłówek jest przyklejony — bez tego treść mogła zostać pod nim
+  document.body.classList.toggle('adminmode', m === 'admin');
+  $id('swKarta').classList.toggle('active', m === 'karta');
+  $id('swAdmin').classList.toggle('active', m === 'admin');
+  if(m === 'admin') renderAdmin();
+}
+$id('swKarta').addEventListener('click', ()=>setMode('karta'));
+$id('swAdmin').addEventListener('click', ()=>setMode('admin'));
+
+// ---------- panel administratora ----------
+let adminUsers = [];
+let adminNote = {text:'', err:false};
+function adminToast(text, err){ adminNote = {text: text, err: !!err}; const t = $id('adToast'); if(t){ t.textContent = text; t.className = 'pnl-toast' + (err ? ' err' : ''); } }
+const VIS_OPTS = [[1,'Tylko bieżący miesiąc'],[2,'Bieżący + 1 poprzedni'],[3,'Bieżący + 2 poprzednie'],[0,'Cała historia']];
+
+function adminUserCard(u){
+  const nowVal = `${curYear}-${String(curMonth).padStart(2,'0')}`;
+  const pinLine = u.startPin
+    ? `<span class="pnl-pinshow">${u.startPin}</span> <span class="pnl-dim">ustawiony przez Ciebie — serwisant jeszcze go nie zmienił</span>`
+    : `<span class="pnl-dim">ustawiony przez serwisanta (ukryty)</span>`;
+  return `<div class="pnl-card" data-id="${escapeAttr(u.id)}">
+    <div class="pnl-row"><div><b>${escapeHtml(u.name)}</b><div class="pnl-dim">login ${escapeHtml(u.id)}</div></div><span class="pnl-pill ${u.locked?'bad':'ok'}">${u.locked?'zablokowany':'aktywny'}</span></div>
+    <div class="pnl-lab">PIN</div>
+    <div class="pnl-pinline">${pinLine}</div>
+    <div class="pnl-row2"><input class="pnl-in f-np" inputmode="numeric" maxlength="10" placeholder="nowy PIN (4-10 cyfr)"><button class="pnl-btn" data-act="setpin">Ustaw</button></div>
+    <div class="pnl-lab">Co widzi w historii</div>
+    <select class="pnl-in f-vis" data-act="vis">${VIS_OPTS.map(o=>`<option value="${o[0]}" ${o[0]===u.visibleMonths?'selected':''}>${o[1]}</option>`).join('')}</select>
+    <div class="pnl-lab">Uprawnienia do plików</div>
+    <label class="pnl-chk"><input type="checkbox" class="f-exp" data-act="perm" ${u.canExport?'checked':''}> Może pobierać (eksport .xlsx)</label>
+    <label class="pnl-chk"><input type="checkbox" class="f-imp" data-act="perm" ${u.canImport?'checked':''}> Może wgrywać (import .xlsx)</label>
+    <div class="pnl-lab">Ty na jego koncie</div>
+    <input type="month" class="pnl-in f-month" value="${nowVal}">
+    <div class="pnl-row2 wrap"><a href="#" class="pnl-btn" data-act="aexp">↑ Eksportuj jego kartę</a><label class="pnl-btn">↓ Importuj do jego karty…<input type="file" class="f-file" accept=".xlsx,${XLSX_MIME}"></label></div>
+    <div class="pnl-row2 wrap">${u.locked?'<button class="pnl-btn" data-act="unlock">Odblokuj konto</button>':''}<button class="pnl-btn danger" data-act="off">Wyłącz konto</button></div>
+  </div>`;
+}
+
+async function renderAdmin(){
+  const box = $id('adminView');
+  box.innerHTML = '<div class="pnl-note">Wczytywanie…</div>';
+  let out;
+  try{ out = await api('admin.list'); }
+  catch(e){ box.innerHTML = '<div class="pnl-note">Brak połączenia z serwerem.</div>'; return; }
+  if(!out || !out.ok){ box.innerHTML = '<div class="pnl-note">Brak dostępu do panelu.</div>'; return; }
+  adminUsers = out.users;
+  const active = out.users.filter(u=>u.active && u.role !== 'admin');
+  const off = out.users.filter(u=>!u.active);
+  const me = out.users.find(u=>u.role === 'admin' && u.id === userId());
+  box.innerHTML = `
+    <div class="pnl-head"><b>Serwisanci</b><button class="pnl-btn" data-act="addtoggle">＋ Dodaj</button></div>
+    <div class="pnl-card hide" id="adAdd"><b>Nowy serwisant</b>
+      <div class="pnl-lab">Imię i nazwisko</div><input class="pnl-in" id="adNewName" placeholder="Jan Kowalski">
+      <div class="pnl-row2"><div><div class="pnl-lab">Login (skrót, litery)</div><input class="pnl-in" id="adNewId" maxlength="6" autocapitalize="characters" placeholder="JK"></div>
+      <div><div class="pnl-lab">PIN startowy</div><input class="pnl-in" id="adNewPin" inputmode="numeric" maxlength="10" placeholder="4-10 cyfr"></div></div>
+      <button class="pnl-btn primary" data-act="create">Utwórz konto</button></div>
+    ${me?`<div class="pnl-card" data-id="${escapeAttr(me.id)}"><div class="pnl-row"><div><b>${escapeHtml(me.name)}</b> <span class="pnl-pill">admin</span><div class="pnl-dim">login ${escapeHtml(me.id)}</div></div><span class="pnl-pill ok">aktywny</span></div>
+      <div class="pnl-lab">Twój PIN</div><div class="pnl-dim">Nie pamiętasz PIN-u albo chcesz go zmienić? Wpisz nowy — nikt go nie zobaczy. Zostaniesz zalogowany od razu, a na innych urządzeniach zalogujesz się ponownie.</div>
+      <div class="pnl-row2"><input class="pnl-in f-np" type="password" inputmode="numeric" maxlength="10" placeholder="nowy PIN (4-10 cyfr)" autocomplete="new-password"><input class="pnl-in f-np2" type="password" inputmode="numeric" maxlength="10" placeholder="powtórz PIN" autocomplete="new-password"></div>
+      <div class="pnl-row2"><button class="pnl-btn primary" data-act="setownpin">Ustaw mój PIN</button></div></div>`:''}
+    ${active.map(adminUserCard).join('') || '<div class="pnl-note">Brak serwisantów. Dodaj pierwszego przyciskiem „＋ Dodaj”.</div>'}
+    ${off.length?`<details class="pnl-off"><summary>Wyłączeni (${off.length})</summary>${off.map(u=>`<div class="pnl-card" data-id="${escapeAttr(u.id)}"><div class="pnl-row"><div><b>${escapeHtml(u.name)}</b><div class="pnl-dim">login ${escapeHtml(u.id)} · dane i PIN zostają</div></div><button class="pnl-btn" data-act="on">Włącz konto</button></div></div>`).join('')}</details>`:''}
+    <div class="pnl-card"><b>Kopia zapasowa</b><div class="pnl-dim" style="margin:4px 0 8px">Wszystkie konta i dane w jednym pliku .json na Twoim Dysku Google (prywatny, bez PIN-ów). Otwórz go w aplikacji Dysk i zapisz na telefonie.</div>
+      <button class="pnl-btn" data-act="backup">↓ Pobierz pełną kopię</button><div id="adBackupLink"></div></div>
+    <div class="pnl-toast${adminNote.err?' err':''}" id="adToast">${escapeHtml(adminNote.text)}</div>
+    <div class="pnl-dim" style="margin-top:8px"><i>Każda Twoja zmiana na kontach serwisantów zapisuje się w dzienniku (kto, co, kiedy), bez PIN-ów i treści godzin.</i></div>`;
+}
+
+const ADMIN_ERR = {exists:'Taki login już istnieje.', bad:'Nieprawidłowe dane.', forbidden:'Brak uprawnień.', self:'Nie można wyłączyć własnego konta.', hidden:'Miesiąc niedostępny.'};
+async function adminCall(action, payload, okMsg){
+  try{
+    const out = await api(action, payload);
+    if(out && out.ok){ adminToast(okMsg || 'Zapisano.'); return out; }
+    adminToast((out && ADMIN_ERR[out.error]) || 'Operacja nie powiodła się.', true);
+  }catch(e){ adminToast('Brak połączenia z serwerem.', true); }
+  return null;
+}
+function cardUser(el){ const c = el.closest('[data-id]'); return c ? adminUsers.find(u=>u.id === c.dataset.id) : null; }
+function cardMonth(el){
+  const v = (el.closest('.pnl-card').querySelector('.f-month') || {}).value || '';
+  const m = /^(\d{4})-(\d{2})$/.exec(v);
+  return m ? [Number(m[1]), Number(m[2])] : [curYear, curMonth];
+}
+
+$id('adminView').addEventListener('click', async (e)=>{
+  const el = e.target.closest('[data-act]');
+  if(!el) return;
+  const act = el.dataset.act;
+  if(act === 'addtoggle'){ $id('adAdd').classList.toggle('hide'); return; }
+  if(act === 'create'){
+    const name = $id('adNewName').value.trim(), id = $id('adNewId').value.trim().toUpperCase(), pin = $id('adNewPin').value.trim();
+    if(!name || !/^[A-Z]{1,6}$/.test(id) || !/^\d{4,10}$/.test(pin)){ adminToast('Podaj imię i nazwisko, skrót (1–6 liter) i PIN (4-10 cyfr).', true); return; }
+    if(await adminCall('admin.createUser', {id: id, name: name, pin: pin, visibleMonths: 0}, `Utworzono konto: ${name} (${id}). PIN startowy widzisz na karcie.`)) await renderAdmin();
+    return;
+  }
+  if(act === 'backup'){
+    adminToast('Zapisuję kopię na Dysku…');
+    const out = await adminCall('admin.backupDrive', {}, 'Kopia zapisana na Dysku Google.');
+    if(out) $id('adBackupLink').innerHTML = `<a class="pnl-btn primary" href="${escapeAttr(out.url)}" target="_blank" rel="noopener">Otwórz ${escapeHtml(out.name)}</a>`;
+    return;
+  }
+  if(act === 'setownpin'){
+    const card = el.closest('.pnl-card');
+    const p1 = card.querySelector('.f-np').value.trim(), p2 = card.querySelector('.f-np2').value.trim();
+    if(!/^\d{4,10}$/.test(p1)){ adminToast('PIN to 4-10 cyfr.', true); return; }
+    if(p1 !== p2){ adminToast('PIN i powtórzenie się różnią.', true); return; }
+    const uid = userId();
+    if(await adminCall('admin.setPin', {id: uid, pin: p1}, 'Twój PIN został zmieniony.')){
+      // Serwer po zmianie PIN-u kończy sesje — logujemy się od razu nowym PIN-em.
+      try{ const lg = await api('login', {user: uid, pin: p1}); if(lg && lg.ok) saveAuth({token: lg.token, user: lg.user, expires: lg.expires}); }catch(e){}
+      await renderAdmin();
+    }
+    return;
+  }
+  const u = cardUser(el);
+  if(!u) return;
+  if(act === 'setpin'){
+    const pin = el.closest('.pnl-card').querySelector('.f-np').value.trim();
+    if(!/^\d{4,10}$/.test(pin)){ adminToast('PIN to 4-10 cyfr.', true); return; }
+    if(await adminCall('admin.setPin', {id: u.id, pin: pin}, `Nowy PIN dla ${u.name} ustawiony — zostanie wylogowany na telefonie.`)) await renderAdmin();
+  } else if(act === 'unlock'){
+    if(await adminCall('admin.unlock', {id: u.id}, `Konto ${u.name} odblokowane.`)) await renderAdmin();
+  } else if(act === 'off'){
+    if(confirm(`Wyłączyć konto ${u.name}? Dane zostają, konto zniknie z listy, a Ty włączysz je w każdej chwili.`) &&
+       await adminCall('admin.setActive', {id: u.id, active: false}, `Konto ${u.name} wyłączone.`)) await renderAdmin();
+  } else if(act === 'on'){
+    if(await adminCall('admin.setActive', {id: u.id, active: true}, `Konto ${u.name} włączone.`)) await renderAdmin();
+  } else if(act === 'aexp'){
+    await adminExport(el, u, e);
+  }
+});
+$id('adminView').addEventListener('change', async (e)=>{
+  const el = e.target;
+  if(el.classList.contains('f-vis')){
+    const u = cardUser(el); if(!u) return;
+    if(await adminCall('admin.setVisibility', {id: u.id, months: Number(el.value)}, 'Zapisano: zmiana działa od razu.')) u.visibleMonths = Number(el.value);
+  } else if(el.classList.contains('f-exp') || el.classList.contains('f-imp')){
+    const u = cardUser(el); if(!u) return;
+    const card = el.closest('.pnl-card');
+    await adminCall('admin.setPerms', {id: u.id, canExport: card.querySelector('.f-exp').checked, canImport: card.querySelector('.f-imp').checked}, `Zapisano uprawnienia: ${u.name}.`);
+  } else if(el.classList.contains('f-file')){
+    await adminImport(el);
+  }
+});
+
+// Eksport karty serwisanta (na koncie admina): dwuetapowy link jak przy zwykłym eksporcie na iOS.
+async function adminExport(a, u, e){
+  if(a.dataset.ready === '1'){
+    setTimeout(()=>{ a.dataset.ready = ''; a.removeAttribute('href'); a.textContent = '↑ Eksportuj jego kartę'; }, 600);
+    return;                                   // prawdziwe dotknięcie linku — przeglądarka pobiera plik
+  }
+  e.preventDefault();
+  const [yy, mm] = cardMonth(a);
+  a.textContent = 'przygotowuję…';
+  try{
+    const g = await api('admin.get', {id: u.id, key: storageKey(yy, mm)});
+    if(!g || !g.ok) throw new Error('nie udało się odczytać karty');
+    const n = daysInMonth(yy, mm);
+    const arr = (g.value && g.value.trim()) ? migrateOld(JSON.parse(g.value), n) : blankMonth(n);
+    const saved = {d: monthData, y: curYear, m: curMonth};
+    let built;
+    try{ monthData = arr; monthData._meta = {normaOverride: null}; curYear = yy; curMonth = mm; built = buildWorkbook(u); }
+    finally{ monthData = saved.d; curYear = saved.y; curMonth = saved.m; }
+    a.href = await uploadExport(built.wb, built.filename, u.id);
+    a.dataset.ready = '1';
+    a.textContent = 'pobierz ' + built.filename + '!';
+    adminToast('Plik gotowy — dotknij jeszcze raz, żeby go pobrać.');
+  }catch(err){
+    a.textContent = '↑ Eksportuj jego kartę';
+    adminToast('Eksport się nie udał: ' + err.message, true);
+  }
+}
+// Import pliku .xlsx do wybranego miesiąca na koncie serwisanta.
+async function adminImport(input){
+  const u = cardUser(input);
+  const file = input.files[0];
+  if(!u || !file) return;
+  const [yy, mm] = cardMonth(input);
+  if(!confirm(`Zaimportować plik do karty: ${u.name}, ${MONTH_NAMES[mm-1]} ${yy}? To nadpisze jego wpisy w tym miesiącu.`)){ input.value = ''; return; }
+  try{
+    const wb = XLSX.read(await file.arrayBuffer(), {type: 'array'});
+    const arr = xlsxToMonthArray(wb.Sheets[wb.SheetNames[0]], yy, mm);
+    const out = await adminCall('admin.set', {id: u.id, key: storageKey(yy, mm), value: JSON.stringify(arr)}, `Zaimportowano do karty ${u.name} (${MONTH_NAMES[mm-1]} ${yy}). Sprawdź godziny.`);
+    if(!out) throw new Error('serwer odmówił zapisu');
+  }catch(err){ adminToast('Import się nie udał: ' + err.message, true); }
+  input.value = '';
+}
+
+// ---------- start ----------
+async function startApp(){
+  if(!auth){ showLogin(); return; }
+  hideLogin();
+  try{
+    const me = await api('me');
+    if(me && me.ok){ auth.user = me.user; saveAuth(auth); }
+    else if(me && me.error === 'auth') return;      // api() pokazało już ekran logowania
+  }catch(e){ /* offline: zostajemy przy zapamiętanym koncie */ }
+  applyUserUI();
+  settings = loadSettings();
+  setMode('karta');
   monthData = await loadMonth(curYear, curMonth);
   ensureMeta();
   render();
   refreshYearlyUrlop();
   checkConnection();
-})();
+}
+// ===== Wyszukiwarka haseł (v1.4) =====
+// Szukanie robi serwer (action 'search'): opisy wpisów i komentarze urlopu, bez rozróżniania wielkości
+// liter i polskich znaków, wszystkie słowa w jednym opisie. Serwer pomija miesiące ukryte przez admina.
+const SEARCH_RANGES = [[1,'Ten miesiąc'],[2,'Ostatnie 2'],[3,'Ostatnie 3'],[0,'Cała historia']];
+const findState = {q:'', months:0, hits:[], idx:0, active:false, seq:0, timer:null, total:0};
+
+function normText(s){ return String(s||'').toLowerCase().replace(/ł/g,'l').normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function searchWords(q){ return normText(q.trim()).split(/\s+/).filter(Boolean); }
+function markHtml(text, marks){
+  const spans = (marks||[]).slice().sort((a,b)=>a[0]-b[0]);
+  let out = '', pos = 0;
+  spans.forEach(sp=>{
+    if(sp[0] < pos) return;
+    out += escapeHtml(text.slice(pos, sp[0])) + '<mark>' + escapeHtml(text.slice(sp[0], sp[0]+sp[1])) + '</mark>';
+    pos = sp[0] + sp[1];
+  });
+  return out + escapeHtml(text.slice(pos));
+}
+
+function openSearchPage(){
+  try{
+    const v = localStorage.getItem(lsKey('kg_search_range'));
+    if(!findState.rangeTouched && v !== null && [0,1,2,3].includes(Number(v))) findState.months = Number(v);
+  }catch(e){}
+  $id('searchPage').style.display = 'block';
+  $id('userMenu').classList.remove('open');
+  renderSearchChips();
+  if(!$id('spQ').value) renderSearchResults();
+  setTimeout(()=>{ try{ $id('spQ').focus(); }catch(e){} }, 60);
+}
+function closeSearchPage(){ $id('searchPage').style.display = 'none'; }
+
+function renderSearchChips(){
+  $id('spChips').innerHTML = SEARCH_RANGES.map(r=>`<button type="button" class="sp-chip${r[0]===findState.months?' on':''}" data-m="${r[0]}">${r[1]}</button>`).join('');
+}
+
+function scheduleSearch(now){
+  clearTimeout(findState.timer);
+  findState.timer = setTimeout(runSearch, now ? 0 : 450);
+}
+
+async function runSearch(){
+  const q = $id('spQ').value.trim();
+  const words = searchWords(q);
+  findState.q = q;
+  if(!words.length || words.join(' ').length < 2){
+    findState.hits = []; findState.total = 0;
+    renderSearchResults('Wpisz co najmniej 2 litery.');
+    return;
+  }
+  const seq = ++findState.seq;
+  $id('spSum').textContent = 'Szukam…';
+  let out;
+  try{ out = await api('search', {q: q, months: findState.months}); }
+  catch(e){
+    if(seq === findState.seq) renderSearchResults('Wyszukiwanie wymaga połączenia z serwerem. Spróbuj ponownie.', true);
+    return;
+  }
+  if(seq !== findState.seq) return;                       // nowsze zapytanie już poszło
+  if(!out || !out.ok){ renderSearchResults('Nie udało się wyszukać. Spróbuj ponownie.', true); return; }
+  findState.hits = out.hits; findState.total = out.total;
+  renderSearchResults(null, false, out);
+}
+
+function hitDateLabel(h){
+  const wd = DAY_NAMES[new Date(h.y, h.m-1, h.d).getDay()];
+  const yr = h.y !== new Date().getFullYear() ? '.' + h.y : '';
+  return `${wd} ${String(h.d).padStart(2,'0')}.${String(h.m).padStart(2,'0')}${yr}`;
+}
+
+function renderSearchResults(msg, isErr, out){
+  const res = $id('spRes'), sum = $id('spSum'), note = $id('spNote');
+  note.style.display = 'none';
+  if(msg !== undefined && msg !== null || !out){
+    sum.textContent = '';
+    res.innerHTML = `<div class="sp-empty${isErr?' err':''}">${escapeHtml(msg || 'Wpisz hasło (od 2 liter), np. nazwę obiektu albo rzecz, którą robiłeś.')}<br><span class="sp-dim">Szukam w opisach wpisów i komentarzach urlopu.</span></div>`;
+    return;
+  }
+  if(!out.hits.length){
+    sum.textContent = '0 wyników';
+    res.innerHTML = '<div class="sp-empty">Nic nie znaleziono w tym zakresie.<br><span class="sp-dim">Spróbuj „Cała historia” albo krótszego słowa (np. „zabk”).</span></div>';
+  } else {
+    const months = new Set(out.hits.map(h=>h.y+'-'+h.m)).size;
+    const n = out.total;
+    sum.textContent = `${n} ${n===1?'wynik':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'wyniki':'wyników')} w ${months} mies.`;
+    let html = '', last = '';
+    out.hits.forEach((h,i)=>{
+      const key = h.y + '-' + h.m;
+      if(key !== last){ html += `<div class="sp-mh">${MONTH_NAMES[h.m-1]} ${h.y}</div>`; last = key; }
+      const time = h.start ? `${h.start}–${h.end}` : 'cały dzień';
+      const kindTxt = h.kind === 'urlop' ? 'Urlop' : (KIND_SHORT[h.kind] || '');
+      html += `<button type="button" class="sp-hit" data-i="${i}"><div class="sp-hrow"><span class="sp-hd">${hitDateLabel(h)} ${kindTxt?`<span class="sp-tag">${kindTxt}</span>`:''}</span><span class="sp-tm">${time}</span></div><div class="sp-snip">${markHtml(h.text, h.marks)}</div></button>`;
+    });
+    res.innerHTML = html;
+  }
+  const notes = [];
+  if(out.limited) notes.push('Szukasz tylko w miesiącach, do których masz dostęp.');
+  if(out.truncated) notes.push(`Pokazano ${out.hits.length} z ${out.total} wyników — zawęź hasło lub zakres.`);
+  if(notes.length){ note.textContent = notes.join(' '); note.style.display = 'block'; }
+}
+
+// ---------- skok do wyniku ----------
+function findBlockIndex(day, hit, words){
+  const blocks = day.blocks || [];
+  let idx = blocks.findIndex(b => (b.start||'') === hit.start && (b.end||'') === hit.end && words.every(w => normText(b.komentarz).includes(w)));
+  if(idx < 0) idx = blocks.findIndex(b => words.every(w => normText(b.komentarz).includes(w)));
+  return idx;
+}
+
+async function goToHit(i){
+  const hits = findState.hits;
+  if(!hits.length) return;
+  i = (i + hits.length) % hits.length;
+  findState.idx = i;
+  findState.active = true;
+  const h = hits[i];
+  closeSearchPage();
+  if(appMode === 'admin') setMode('karta');
+  switchTab('days');
+  // widok miesiąca, żeby dzień był na liście
+  viewMode = 'miesiac';
+  document.querySelectorAll('.viewmode-switch button').forEach(b=>b.classList.toggle('active', b.dataset.vm === 'miesiac'));
+  refDate = new Date(h.y, h.m-1, h.d);
+  await syncMonthWithRef();
+  if(monthHidden) return;
+  openDay = h.d;
+  render();
+  const day = monthData[h.d-1];
+  const words = searchWords(findState.q);
+  let target = null;
+  if(day && day.dayType === 'urlop'){
+    target = document.querySelector(`#body-${h.d} .urlop-komentarz`);
+  } else if(day){
+    const bi = findBlockIndex(day, h, words);
+    if(bi >= 0){
+      blockUI.day = h.d;
+      if(blockUI.open.length !== day.blocks.length) blockUI.open = day.blocks.map(()=>false);
+      blockUI.open[bi] = true;
+      renderBody(h.d, true);
+      target = document.querySelector(`#body-${h.d} .block[data-block="${bi}"]`);
+    }
+  }
+  if(target) target.classList.add('find-hit');
+  const row = document.querySelector(`.day[data-day="${h.d}"]`);
+  if(row){
+    const headH = (document.querySelector('header') || {offsetHeight:0}).offsetHeight;
+    window.scrollTo({top: Math.max(0, row.getBoundingClientRect().top + window.scrollY - headH - 6), behavior: 'smooth'});
+  }
+  updateFindBar();
+}
+
+function updateFindBar(){
+  const bar = $id('findBar');
+  if(!findState.active || !findState.hits.length){ bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  $id('fbPos').textContent = `${findState.idx + 1} / ${findState.hits.length}`;
+  $id('fbQ').textContent = '„' + findState.q + '”';
+}
+
+$id('btnSearch').addEventListener('click', openSearchPage);
+$id('spBack').addEventListener('click', ()=>{ closeSearchPage(); });
+$id('spQ').addEventListener('input', ()=>scheduleSearch(false));
+$id('spForm').addEventListener('submit', (e)=>{ e.preventDefault(); scheduleSearch(true); try{ $id('spQ').blur(); }catch(_){} });
+$id('spChips').addEventListener('click', (e)=>{
+  const b = e.target.closest('.sp-chip'); if(!b) return;
+  findState.months = Number(b.dataset.m);
+  findState.rangeTouched = true;
+  try{ localStorage.setItem(lsKey('kg_search_range'), String(findState.months)); }catch(_){}
+  renderSearchChips();
+  if(searchWords($id('spQ').value).length) scheduleSearch(true);
+});
+$id('spRes').addEventListener('click', (e)=>{
+  const b = e.target.closest('.sp-hit'); if(!b) return;
+  goToHit(Number(b.dataset.i));
+});
+$id('fbPrev').addEventListener('click', ()=>goToHit(findState.idx - 1));
+$id('fbNext').addEventListener('click', ()=>goToHit(findState.idx + 1));
+$id('fbList').addEventListener('click', openSearchPage);
+$id('fbClose').addEventListener('click', ()=>{ findState.active = false; updateFindBar(); document.querySelectorAll('.find-hit').forEach(x=>x.classList.remove('find-hit')); });
+
+// ===== Kopia całego roku (v1.5): jeden plik .xlsx, arkusz na każdy miesiąc, także puste =====
+function monthsFileName(list, id){
+  const yy = String(list[list.length-1].y).slice(-2);
+  let body;
+  if(list.length === 1) body = String(list[0].m);
+  else if(list.every(x=>x.y === list[0].y)){
+    const contig = list.every((x,i)=> i === 0 || x.m === list[i-1].m + 1);
+    body = contig ? `${list[0].m}-${list[list.length-1].m}` : list.map(x=>x.m).join('+');
+  } else body = list.map(x=>x.m + '.' + String(x.y).slice(-2)).join('+');
+  return `${body}_${yy}_${id}.xlsx`;
+}
+
+// Skoroszyt z wieloma miesiącami: każdy arkusz w tym samym układzie co eksport jednego miesiąca.
+function buildWorkbookMonths(entries, forUser){
+  const wb = XLSX.utils.book_new();
+  const saved = {d: monthData, y: curYear, m: curMonth};
+  try{
+    entries.forEach(en=>{
+      monthData = en.arr; monthData._meta = {normaOverride: null};
+      curYear = en.y; curMonth = en.m;
+      const name = MONTH_NAMES[en.m-1].charAt(0).toUpperCase() + MONTH_NAMES[en.m-1].slice(1) + ' ' + en.y;
+      XLSX.utils.book_append_sheet(wb, buildSheet(forUser), name);
+    });
+  } finally { monthData = saved.d; curYear = saved.y; curMonth = saved.m; }
+  return wb;
+}
+
+function openYearModal(){
+  const now = new Date().getFullYear();
+  $id('yrSel').innerHTML = [now, now-1, now-2].map(y=>`<option value="${y}">${y}</option>`).join('');
+  yearReset();
+  $id('yearModal').style.display = 'block';
+}
+function yearReset(){
+  $id('yrErr').textContent = '';
+  $id('yrInfo').textContent = '';
+  const link = $id('yrLink');
+  if(link.dataset.blob){ try{ URL.revokeObjectURL(link.dataset.blob); }catch(e){} link.dataset.blob = ''; }
+  link.style.display = 'none'; link.removeAttribute('href'); link.removeAttribute('download');
+  $id('yrGo').style.display = ''; $id('yrGo').disabled = false; $id('yrGo').textContent = 'Przygotuj plik';
+}
+
+async function prepareYearExport(){
+  const year = Number($id('yrSel').value);
+  const btn = $id('yrGo');
+  $id('yrErr').textContent = ''; $id('yrInfo').textContent = '';
+  btn.disabled = true; btn.textContent = 'Pobieram dane…';
+  try{
+    const keys = []; for(let m=1; m<=12; m++) keys.push(storageKey(year, m));
+    const out = await api('getMonths', {keys: keys});
+    if(!out || !out.ok){
+      if(!(out && out.error === 'auth')) $id('yrErr').textContent = 'Nie udało się pobrać danych z serwera. Spróbuj ponownie.';
+      btn.disabled = false; btn.textContent = 'Przygotuj plik'; return;
+    }
+    const entries = [], skipped = [];
+    let filled = 0;
+    for(let m=1; m<=12; m++){
+      const info = out.months[storageKey(year, m)] || {};
+      if(info.error === 'hidden'){ skipped.push(MONTH_NAMES[m-1]); continue; }
+      const n = daysInMonth(year, m);
+      let arr = null;
+      if(info.value && info.value.trim()){ try{ arr = migrateOld(JSON.parse(info.value), n); }catch(e){} }
+      if(!arr){                                       // brak w Arkuszu: może są dane zapisane tylko lokalnie (offline)
+        try{ const loc = localStorage.getItem(lsKey(storageKey(year, m))); if(loc) arr = migrateOld(JSON.parse(loc), n); }catch(e){}
+      }
+      if(arr) filled++;
+      entries.push({y: year, m: m, arr: arr || blankMonth(n)});
+    }
+    if(!entries.length){ $id('yrErr').textContent = 'Żaden miesiąc tego roku nie jest dla Ciebie dostępny.'; btn.disabled = false; btn.textContent = 'Przygotuj plik'; return; }
+    const wb = buildWorkbookMonths(entries);
+    const filename = monthsFileName(entries.map(e=>({y: e.y, m: e.m})), userId());
+    const link = $id('yrLink');
+    if(isIOS()){
+      link.href = await uploadExport(wb, filename);            // iOS: zwykły link do pobrania z Dysku
+      link.removeAttribute('download');
+    } else {
+      const bytes = XLSX.write(wb, {bookType: 'xlsx', type: 'array'});
+      const url = URL.createObjectURL(new Blob([bytes], {type: XLSX_MIME}));
+      link.href = url; link.dataset.blob = url; link.setAttribute('download', filename);
+    }
+    link.textContent = '↓ Pobierz ' + filename;
+    link.style.display = 'block'; btn.style.display = 'none';
+    let info = `Gotowe: ${entries.length} arkuszy (miesięcy), w tym ${filled} z wpisami. Dotknij przycisku poniżej, żeby zapisać plik.`;
+    if(skipped.length) info += ` Pominięto niedostępne miesiące: ${skipped.join(', ')}.`;
+    $id('yrInfo').textContent = info;
+  }catch(err){
+    $id('yrErr').textContent = /uprawnie/.test(String(err && err.message)) ? 'Nie masz uprawnienia do eksportu.' : 'Nie udało się przygotować pliku: ' + (err && err.message ? err.message : 'błąd') + '. Spróbuj ponownie.';
+    btn.disabled = false; btn.textContent = 'Przygotuj plik';
+  }
+}
+
+$id('btnExportYear').addEventListener('click', openYearModal);
+$id('yrSel').addEventListener('change', yearReset);
+$id('yrGo').addEventListener('click', prepareYearExport);
+$id('yrClose').addEventListener('click', ()=>{ yearReset(); $id('yearModal').style.display = 'none'; });
+
+startApp();
 </script>
 </body>
 </html>
