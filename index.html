@@ -361,8 +361,10 @@
 </div>
 
 <header>
-  <button id="btnHub" title="Rozdzielacz" style="display:none;position:absolute;top:10px;left:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:14px;">🏠</button>
-  <button class="userchip" id="userChip" style="display:none">—</button>
+  <div style="position:absolute;top:10px;right:12px;display:flex;align-items:center;gap:6px;">
+    <button id="btnHub" title="Rozdzielacz" style="display:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:14px;">🏠</button>
+    <button class="userchip" id="userChip" style="display:none;position:static;">—</button>
+  </div>
   <div class="usermenu" id="userMenu"><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
   <h1>Karta godzin <span class="vertag">v1.5</span></h1>
   <div class="who"><span id="whoName">—</span> · <span class="buildtag">21.09.2026 11:08</span></div>
