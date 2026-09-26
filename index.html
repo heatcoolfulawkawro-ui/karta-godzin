@@ -362,7 +362,7 @@
 
 <header>
   <button class="userchip" id="userChip" style="display:none">—</button>
-  <div class="usermenu" id="userMenu"><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
+  <div class="usermenu" id="userMenu"><button id="mnHub" style="display:none">← Rozdzielacz</button><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
   <h1>Karta godzin <span class="vertag">v1.5</span></h1>
   <div class="who"><span id="whoName">—</span> · <span class="buildtag">21.09.2026 11:08</span></div>
   <div class="rolesw" id="roleSw" style="display:none"><button id="swKarta" class="active">Karta</button><button id="swAdmin">Admin</button></div>
@@ -1727,11 +1727,13 @@ function applyUserUI(){
   $id('userChip').style.display = u ? '' : 'none';
   if(u) $id('userChip').textContent = u.id + ' ▾';
   $id('roleSw').style.display = isAdmin() ? '' : 'none';
+  $id('mnHub').style.display = isAdmin() ? '' : 'none';
   $id('btnImport').style.display = (u && u.canImport) ? '' : 'none';
   $id('btnExport').style.display = (u && u.canExport) ? '' : 'none';
   $id('btnExportYear').style.display = (u && u.canExport) ? '' : 'none';
 }
 $id('userChip').addEventListener('click', (e)=>{ e.stopPropagation(); $id('userMenu').classList.toggle('open'); });
+$id('mnHub').addEventListener('click', ()=>{ location.href = 'https://heatcoolfulawkawro-ui.github.io/'; });
 document.addEventListener('click', ()=>$id('userMenu').classList.remove('open'));
 $id('mnLogout').addEventListener('click', async ()=>{
   try{ await api('logout'); }catch(e){}
