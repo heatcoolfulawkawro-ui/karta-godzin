@@ -315,14 +315,25 @@
 <div class="overlay" id="pinModal">
   <form class="lg-box" id="pmForm" autocomplete="off">
     <div class="lg-title" style="font-size:18px">Zmiana PIN-u</div>
-    <label for="pmOld">Obecny PIN</label>
-    <input id="pmOld" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
-    <label for="pmNew">Nowy PIN (4-10 cyfr)</label>
-    <input id="pmNew" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
-    <label for="pmNew2">Powtórz nowy PIN</label>
-    <input id="pmNew2" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
+    <div id="pmSimpleFields">
+      <label for="pmOld">Obecny PIN</label>
+      <input id="pmOld" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
+      <label for="pmNew">Nowy PIN (4-10 cyfr)</label>
+      <input id="pmNew" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
+      <label for="pmNew2">Powtórz nowy PIN</label>
+      <input id="pmNew2" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
+    </div>
+    <div id="pmLegacyFields" style="display:none">
+      <div class="lg-sub" id="pmLegacyMsg">Wysyłam kod na Twój e-mail…</div>
+      <div id="pmLegacyCodeBox" style="display:none">
+        <label for="pmCode">Kod z e-maila</label>
+        <input id="pmCode" type="text" inputmode="numeric" maxlength="6" placeholder="6 cyfr">
+        <label for="pmNewLegacy">Nowy PIN (4-10 cyfr)</label>
+        <input id="pmNewLegacy" type="password" inputmode="numeric" maxlength="10" placeholder="••••••">
+      </div>
+    </div>
     <div class="lg-err" id="pmErr"></div>
-    <button class="lg-btn" type="submit">Zapisz PIN</button>
+    <button class="lg-btn" type="submit" id="pmSubmitBtn">Zapisz PIN</button>
     <button class="lg-btn ghost" type="button" id="pmCancel">Anuluj</button>
   </form>
 </div>
@@ -1760,15 +1771,49 @@ $id('mnLogout').addEventListener('click', async ()=>{
   saveAuth(null);
   location.reload();
 });
-$id('mnPin').addEventListener('click', ()=>{
+async function openPinModal(){
   $id('pmErr').textContent = '';
-  ['pmOld','pmNew','pmNew2'].forEach(i=>{ $id(i).value = ''; });
+  ['pmOld','pmNew','pmNew2','pmCode','pmNewLegacy'].forEach(i=>{ $id(i).value = ''; });
   $id('pinModal').style.display = 'block';
-});
+  if(userId() === 'PF'){
+    $id('pmSimpleFields').style.display = 'none';
+    $id('pmLegacyFields').style.display = 'block';
+    $id('pmLegacyCodeBox').style.display = 'none';
+    $id('pmSubmitBtn').style.display = 'none';
+    $id('pmLegacyMsg').textContent = 'Wysyłam kod na Twój e-mail…';
+    try{
+      const out = await api('requestPinReset', {});
+      if(out && out.ok){
+        $id('pmLegacyMsg').textContent = 'Kod wysłany na e-mail. Wpisz go razem z nowym PIN-em — potem przyjdzie jeszcze link do potwierdzenia.';
+        $id('pmLegacyCodeBox').style.display = 'block';
+        $id('pmSubmitBtn').style.display = '';
+      }else{
+        $id('pmLegacyMsg').textContent = (out && out.error) || 'Nie udało się wysłać kodu — spróbuj ponownie później.';
+      }
+    }catch(e){ $id('pmLegacyMsg').textContent = 'Brak połączenia z serwerem.'; }
+  }else{
+    $id('pmSimpleFields').style.display = 'block';
+    $id('pmLegacyFields').style.display = 'none';
+    $id('pmSubmitBtn').style.display = '';
+  }
+}
+$id('mnPin').addEventListener('click', openPinModal);
 $id('pmCancel').addEventListener('click', ()=>{ $id('pinModal').style.display = 'none'; });
 $id('pmForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   $id('pmErr').textContent = '';
+  if(userId() === 'PF'){
+    const code = $id('pmCode').value.trim(), n1 = $id('pmNewLegacy').value.trim();
+    if(!/^\d{6}$/.test(code)){ $id('pmErr').textContent = 'Podaj 6-cyfrowy kod z maila.'; return; }
+    if(!/^\d{4,10}$/.test(n1)){ $id('pmErr').textContent = 'PIN to 4-10 cyfr.'; return; }
+    try{
+      const out = await api('confirmPinReset', {code, newPin: n1});
+      if(!out || !out.ok){ $id('pmErr').textContent = (out && out.error) || 'Błąd.'; return; }
+      $id('pinModal').style.display = 'none';
+      alert('Sprawdź maila i kliknij link, żeby dokończyć zmianę PIN-u — dopiero wtedy nowy PIN zacznie działać.');
+    }catch(err){ $id('pmErr').textContent = 'Brak połączenia z serwerem.'; }
+    return;
+  }
   const o = $id('pmOld').value.trim(), n1 = $id('pmNew').value.trim(), n2 = $id('pmNew2').value.trim();
   if(!/^\d{4,10}$/.test(o) || !/^\d{4,10}$/.test(n1)){ $id('pmErr').textContent = 'PIN to 4-10 cyfr.'; return; }
   if(n1 !== n2){ $id('pmErr').textContent = 'Nowy PIN i powtórzenie się różnią.'; return; }
@@ -1844,9 +1889,8 @@ async function renderAdmin(){
       <div><div class="pnl-lab">PIN startowy</div><input class="pnl-in" id="adNewPin" inputmode="numeric" maxlength="10" placeholder="4-10 cyfr"></div></div>
       <button class="pnl-btn primary" data-act="create">Utwórz konto</button></div>
     ${me?`<div class="pnl-card" data-id="${escapeAttr(me.id)}"><div class="pnl-row"><div><b>${escapeHtml(me.name)}</b> <span class="pnl-pill">admin</span><div class="pnl-dim">login ${escapeHtml(me.id)}</div></div><span class="pnl-pill ok">aktywny</span></div>
-      <div class="pnl-lab">Twój PIN</div><div class="pnl-dim">Nie pamiętasz PIN-u albo chcesz go zmienić? Wpisz nowy — nikt go nie zobaczy. Zostaniesz zalogowany od razu, a na innych urządzeniach zalogujesz się ponownie.</div>
-      <div class="pnl-row2"><input class="pnl-in f-np" type="password" inputmode="numeric" maxlength="10" placeholder="nowy PIN (4-10 cyfr)" autocomplete="new-password"><input class="pnl-in f-np2" type="password" inputmode="numeric" maxlength="10" placeholder="powtórz PIN" autocomplete="new-password"></div>
-      <div class="pnl-row2"><button class="pnl-btn primary" data-act="setownpin">Ustaw mój PIN</button></div></div>`:''}
+      <div class="pnl-lab">Twój PIN</div><div class="pnl-dim">Dla bezpieczeństwa Twojego konta zmiana idzie przez kod z maila i potwierdzenie klikiem w link.</div>
+      <div class="pnl-row2"><button class="pnl-btn primary" data-act="openpinflow">Zmień mój PIN</button></div></div>`:''}
     ${active.map(adminUserCard).join('') || '<div class="pnl-note">Brak serwisantów. Dodaj pierwszego przyciskiem „＋ Dodaj”.</div>'}
     ${off.length?`<details class="pnl-off"><summary>Wyłączeni (${off.length})</summary>${off.map(u=>`<div class="pnl-card" data-id="${escapeAttr(u.id)}"><div class="pnl-row"><div><b>${escapeHtml(u.name)}</b><div class="pnl-dim">login ${escapeHtml(u.id)} · dane i PIN zostają</div></div><button class="pnl-btn" data-act="on">Włącz konto</button></div></div>`).join('')}</details>`:''}
     <div class="pnl-card"><b>Kopia zapasowa</b><div class="pnl-dim" style="margin:4px 0 8px">Wszystkie konta i dane w jednym pliku .json na Twoim Dysku Google (prywatny, bez PIN-ów). Otwórz go w aplikacji Dysk i zapisz na telefonie.</div>
@@ -1888,19 +1932,7 @@ $id('adminView').addEventListener('click', async (e)=>{
     if(out) $id('adBackupLink').innerHTML = `<a class="pnl-btn primary" href="${escapeAttr(out.url)}" target="_blank" rel="noopener">Otwórz ${escapeHtml(out.name)}</a>`;
     return;
   }
-  if(act === 'setownpin'){
-    const card = el.closest('.pnl-card');
-    const p1 = card.querySelector('.f-np').value.trim(), p2 = card.querySelector('.f-np2').value.trim();
-    if(!/^\d{4,10}$/.test(p1)){ adminToast('PIN to 4-10 cyfr.', true); return; }
-    if(p1 !== p2){ adminToast('PIN i powtórzenie się różnią.', true); return; }
-    const uid = userId();
-    if(await adminCall('admin.setPin', {id: uid, pin: p1}, 'Twój PIN został zmieniony.')){
-      // Serwer po zmianie PIN-u kończy sesje — logujemy się od razu nowym PIN-em.
-      try{ const lg = await api('login', {user: uid, pin: p1}); if(lg && lg.ok) saveAuth({token: lg.token, user: lg.user, expires: lg.expires}); }catch(e){}
-      await renderAdmin();
-    }
-    return;
-  }
+  if(act === 'openpinflow'){ openPinModal(); return; }
   const u = cardUser(el);
   if(!u) return;
   if(act === 'setpin'){

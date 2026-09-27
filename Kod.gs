@@ -13,6 +13,7 @@
 
 const LEGACY_OPEN = false; // stary otwarty tryb wyłączony 19.09.2026 (etap 3)
 const LEGACY_OWNER = 'PF'; // dane tego użytkownika leżą pod starymi, nieprefiksowanymi kluczami
+const PIN_RESET_EMAIL = 'heatcoolfulawkawro@gmail.com';
 // SHA-256 jednorazowego klucza konfiguracji (sam klucz nie jest w repo). Akcja bootstrap
 // działa tylko przy pustej tabeli Users i tylko z kluczem pasującym do tego skrótu.
 const SETUP_KEY_SHA256 = 'eb51f1764184704daa527ded287062475859b31e55ca80607501c0fd9a7da773';
@@ -68,6 +69,71 @@ function syncPinPush_(b) {
   return { ok: true };
 }
 
+// ---------- Zmiana PIN-u konta PF: kod z maila + potwierdzenie klikiem w link ----------
+// Dwa etapy, oba wymagane, zanim PIN faktycznie się zmieni: (1) request wysyła 6-cyfrowy
+// kod, (2) confirm z poprawnym kodem NIE zmienia PIN-u od razu — dopiero wysyła link,
+// którego kliknięcie (doGet, patrz confirmPinLink_) go zatwierdza. Dzięki temu sama
+// znajomość starego PIN-u (albo aktywnej sesji PF) nie wystarczy, żeby go zmienić —
+// trzeba też mieć dostęp do skrzynki w chwili zmiany. Dotyczy WYŁĄCZNIE konta PF;
+// pozostali użytkownicy mają dawną ścieżkę (changePin_ / adminSetPin_) bez zmian.
+function requestPinResetLegacy_() {
+  const props = PropertiesService.getScriptProperties();
+  const lastReq = Number(props.getProperty('PIN_RESET_LAST_REQ') || 0);
+  if (Date.now() - lastReq < 2 * 60 * 1000) return fail_('Poczekaj chwilę i spróbuj ponownie.');
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  props.setProperty('PIN_RESET_CODE', code);
+  props.setProperty('PIN_RESET_EXPIRES', String(Date.now() + 10 * 60 * 1000));
+  props.setProperty('PIN_RESET_LAST_REQ', String(Date.now()));
+  MailApp.sendEmail(PIN_RESET_EMAIL, 'Kod do zmiany PIN — Karta godzin', 'Twój kod do zmiany PIN: ' + code + '\n\nWażny 10 minut. Jeśli to nie Ty, zignoruj tę wiadomość.');
+  return { ok: true };
+}
+
+function confirmPinResetLegacy_(code, newPin) {
+  const props = PropertiesService.getScriptProperties();
+  const storedCode = props.getProperty('PIN_RESET_CODE');
+  const expires = Number(props.getProperty('PIN_RESET_EXPIRES') || 0);
+  const pin = validPin_(newPin);
+  if (!storedCode || String(code) !== storedCode) return fail_('Nieprawidłowy kod');
+  if (Date.now() > expires) return fail_('Kod wygasł — poproś o nowy');
+  if (!pin) return fail_('PIN to 4-10 cyfr');
+  props.deleteProperty('PIN_RESET_CODE');
+  props.deleteProperty('PIN_RESET_EXPIRES');
+  const token = Utilities.getUuid();
+  props.setProperty('PIN_CONFIRM_TOKEN', token);
+  props.setProperty('PIN_CONFIRM_NEWPIN', pin);
+  props.setProperty('PIN_CONFIRM_EXPIRES', String(Date.now() + 30 * 60 * 1000));
+  const url = ScriptApp.getService().getUrl() + '?confirmPin=' + encodeURIComponent(token);
+  MailApp.sendEmail(PIN_RESET_EMAIL, 'Potwierdź zmianę PIN — Karta godzin', 'Kliknij, żeby potwierdzić zmianę PIN-u:\n' + url + '\n\nWażne 30 minut. Jeśli to nie Ty, zignoruj — PIN się nie zmieni.');
+  return { ok: true, pending: true };
+}
+
+// Wywoływane przez GET po kliknięciu linku z maila (patrz doGet) — bez tokenu sesji,
+// bo mail otwiera się często na innym urządzeniu niż to, na którym appka jest otwarta.
+function confirmPinLink_(token) {
+  const props = PropertiesService.getScriptProperties();
+  const storedToken = props.getProperty('PIN_CONFIRM_TOKEN');
+  const expires = Number(props.getProperty('PIN_CONFIRM_EXPIRES') || 0);
+  const newPin = props.getProperty('PIN_CONFIRM_NEWPIN');
+  if (!storedToken || token !== storedToken || Date.now() > expires || !newPin) {
+    return htmlPage_('Link nieprawidłowy albo wygasł', 'Poproś o nowy kod w aplikacji i spróbuj ponownie.');
+  }
+  props.deleteProperty('PIN_CONFIRM_TOKEN');
+  props.deleteProperty('PIN_CONFIRM_EXPIRES');
+  props.deleteProperty('PIN_CONFIRM_NEWPIN');
+  const u = findUser_(LEGACY_OWNER);
+  if (!u) return htmlPage_('Błąd', 'Nie znaleziono konta.');
+  setPin_(u, newPin, false);
+  pushPinToSiblings_(newPin);
+  return htmlPage_('PIN zmieniony ✓', 'Możesz zamknąć to okno i wrócić do aplikacji.');
+}
+
+function htmlPage_(title, msg) {
+  return HtmlService.createHtmlOutput(
+    '<html><body style="font-family:-apple-system,sans-serif;background:#12181d;color:#e8edf1;padding:40px 20px;text-align:center;">' +
+    '<h2>' + title + '</h2><p style="color:#8fa0ab">' + msg + '</p></body></html>'
+  );
+}
+
 function syncSelftest_() {
   const secret = PropertiesService.getScriptProperties().getProperty('SYNC_SECRET');
   if (!secret) return fail_('nosecret');
@@ -118,6 +184,7 @@ const TZ = 'Europe/Warsaw';
 // ---------- wejścia ----------
 
 function doGet(e) {
+  if (e.parameter.confirmPin) return confirmPinLink_(e.parameter.confirmPin);
   if (!LEGACY_OPEN) return ContentService.createTextOutput('').setMimeType(ContentService.MimeType.JSON);
   const key = e.parameter.key;
   const sheet = getDataSheet();
@@ -210,6 +277,12 @@ function dispatch_(b) {
     case 'getMonths': return getMonths_(user, b);
     case 'search': return search_(user, b);
     case 'changePin': return changePin_(user, b);
+    case 'requestPinReset':
+      if (user.id !== LEGACY_OWNER) return fail_('forbidden');
+      return requestPinResetLegacy_();
+    case 'confirmPinReset':
+      if (user.id !== LEGACY_OWNER) return fail_('forbidden');
+      return confirmPinResetLegacy_(b.code, b.newPin);
   }
   if (action.indexOf('admin.') !== 0) return fail_('bad');
   if (user.role !== 'admin') return fail_('forbidden');
@@ -277,13 +350,16 @@ function login_(b) {
 }
 
 function changePin_(user, b) {
+  // Konto PF ma osobną, zabezpieczoną ścieżkę (kod z maila + potwierdzenie klikiem
+  // w link — patrz requestPinResetLegacy_/confirmPinResetLegacy_) — ta prostsza
+  // (stary PIN -> nowy PIN, bez maila) jest dla niego celowo zablokowana.
+  if (user.id === LEGACY_OWNER) return fail_('forbidden');
   const oldPin = validPin_(b.oldPin);
   const newPin = validPin_(b.newPin);
   if (!oldPin || !newPin) return fail_('bad');
   const u = findUser_(user.id);
   if (!safeEqual_(hashPin_(oldPin, u.salt), u.hash)) return fail_('bad');
   setPin_(u, newPin, false);
-  if (u.id === LEGACY_OWNER) pushPinToSiblings_(newPin);
   return { ok: true };
 }
 
@@ -371,10 +447,12 @@ function adminCreateUser_(b) {
 
 function adminSetPin_(b) {
   const u = findUser_(validId_(b.id));
+  // Konto PF (nawet ustawiane przez samo siebie jako admina, karta "Twój PIN")
+  // idzie WYŁĄCZNIE przez kod z maila + potwierdzenie klikiem — patrz changePin_.
+  if (u && u.id === LEGACY_OWNER) return fail_('forbidden');
   const pin = validPin_(b.pin);
   if (!u || !pin) return fail_('bad');
   setPin_(u, pin, u.role !== 'admin');   // PIN admina nie jest odwracalny (nikt go nie odczyta)
-  if (u.id === LEGACY_OWNER) pushPinToSiblings_(pin);
   return { ok: true };
 }
 
