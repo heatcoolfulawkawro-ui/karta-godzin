@@ -27,13 +27,15 @@ const BACKUP_KEY_SHA256 = '405126d49a5b99b58eb12240ce34b3659ca96e12c3bfb3f454bec
 // PS i pozostali użytkownicy mają całkowicie osobne, niezależne PIN-y.
 // Żeby dołożyć kolejną appkę do rodziny: dopisz jej URL tutaj i do SIBLING_URLS
 // wszystkich pozostałych, potem zbootstrapuj w niej TEN SAM sekret.
-// Gotówka PF CELOWO usunięta stąd 28.09.2026 — to appka z jednym wspólnym
-// PIN-em dla 2 osób (PF+ZF), nie "appka Pawła"; zsynchronizowany PIN
-// powodował, że reset PIN-u przez żonę w Gotówce nadpisywał PIN Pawła tu.
+// Gotówka PF dołączona z powrotem 28.09.2026 — była chwilowo odłączona (bo
+// miała wtedy jeden wspólny PIN dla PF+ZF, i reset przez żonę nadpisywał PIN
+// Pawła tu), ale odkąd ma osobne konta (PF/ZF), jej PIN konta PF jest znowu
+// tylko PIN-em Pawła — bezpiecznie wraca do rodziny.
 const SIBLING_URLS = [
   'https://script.google.com/macros/s/AKfycbwp2qGgpobvHRCOurqA614AxnIA5ozdLlv_EsIr1Ve8t3vNp3Qur8ZfashMQpSZFuM/exec', // Paliwo PF
   'https://script.google.com/macros/s/AKfycbz3-nc9P2jTv3pX2_aiP6Ne7A67QXtZHObP53BU3GNMIjgrThQSJtfaOCnBbGSGSRQI/exec', // Waga PF
-  'https://script.google.com/macros/s/AKfycby-n1t8ehXtz9sNEByK-dZbObSAs39RKOovANpGIefLbs2-spAlx1iwdFb9CUK5fVZH/exec' // Wydatki domowe
+  'https://script.google.com/macros/s/AKfycby-n1t8ehXtz9sNEByK-dZbObSAs39RKOovANpGIefLbs2-spAlx1iwdFb9CUK5fVZH/exec', // Wydatki domowe
+  'https://script.google.com/macros/s/AKfycbxa7mnwnG-iuFvYKqx4-callLWoLGwXzEHk4p3WnU9TdJ7_agcLWNYafWN6KQmIe__g/exec' // Gotówka PF (konto PF)
 ];
 
 function bootstrapSyncSecret_(b) {
