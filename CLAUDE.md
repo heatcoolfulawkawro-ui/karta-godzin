@@ -22,8 +22,7 @@ logowania.
 ## Wdrażanie — wszystko przez `git push` na `main`
 
 - **Frontend**: push → GitHub Pages publikuje samo (~1 min). Appka sama
-  wykrywa nową wersję (HEAD + `last-modified`, skrypt na górze `index.html`)
-  i przeładowuje się. Przy tytule jest znacznik wersji (`.vertag`) i stempel
+  wykrywa nową wersję (skrypt na górze `index.html`: porównuje `document.lastModified` TEJ strony z `last-modified` z `HEAD` i przy nowszej przeładowuje raz przez `?v=` (strażnik w sessionStorage, inne parametry URL zostają); od 30.09.2026 ten sam skrypt we wszystkich mini appkach). Przy tytule jest znacznik wersji (`.vertag`) i stempel
   publikacji (`.buildtag`, format `DD.MM.RRRR GG:MM`) — przy każdym wydaniu
   frontendu ustaw stempel na bieżący czas, żeby na telefonie było widać,
   która wersja jest załadowana.
