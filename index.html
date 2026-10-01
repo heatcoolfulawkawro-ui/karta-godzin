@@ -388,8 +388,8 @@
     <button class="userchip" id="userChip" style="display:none;position:static;">—</button>
   </div>
   <div class="usermenu" id="userMenu"><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
-  <h1>Karta godzin <span class="vertag">v1.6</span></h1>
-  <div class="who"><span id="whoName">—</span> · <span class="buildtag">01.10.2026 10:51</span></div>
+  <h1>Karta godzin <span class="vertag">v1.6.1</span></h1>
+  <div class="who"><span id="whoName">—</span> · <span class="buildtag">01.10.2026 11:06</span></div>
   <div class="rolesw" id="roleSw" style="display:none"><button id="swKarta" class="active">Karta</button><button id="swAdmin">Admin</button></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
@@ -561,7 +561,38 @@ let monthHidden = false;      // miesiąc ukryty przez administratora (serwer od
 let yearUrlopCounts = new Array(12).fill(0);
 function blankMonth(n){ const arr = []; for(let d=1; d<=n; d++) arr.push(emptyDay()); return arr; }
 
+// Ustawienia miesiąca (dziś: ręczna norma) leżą pod osobnym kluczem — dni zostają w starym
+// formacie (tablica), którego JSON.stringify i tak nie zapisałby z dodatkowym polem _meta.
+function metaKey(y,m){ return `karta_godzin_meta_${y}_${m}`; }
+
 async function loadMonth(y,m){
+  const [arr, meta] = await Promise.all([loadMonthDays(y,m), loadMonthMeta(y,m)]);
+  if(!monthHidden && meta) arr._meta = Object.assign({normaOverride:null}, meta);
+  return arr;
+}
+
+async function loadMonthMeta(y,m){
+  const key = metaKey(y,m);
+  try{
+    const out = await api('get', {key: key});
+    if(out && out.ok){
+      try{ out.value ? localStorage.setItem(lsKey(key), out.value) : localStorage.removeItem(lsKey(key)); }catch(e){}
+      return out.value ? JSON.parse(out.value) : null;
+    }
+    if(out && out.error === 'auth') return null;
+  }catch(e){ /* offline — lokalna kopia niżej */ }
+  try{ const raw = localStorage.getItem(lsKey(key)); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+}
+
+function saveMonthMeta(){
+  if(monthHidden) return;
+  const key = metaKey(curYear, curMonth);
+  const json = JSON.stringify(monthData._meta || {normaOverride:null});
+  try{ localStorage.setItem(lsKey(key), json); }catch(e){}
+  cloudMirror(key, json);
+}
+
+async function loadMonthDays(y,m){
   const n = daysInMonth(y,m);
   const key = storageKey(y,m);
   monthHidden = false;
@@ -1439,6 +1470,7 @@ document.getElementById('inpNorma').addEventListener('change', (e)=>{
   const v = parseFloat(e.target.value);
   monthData._meta.normaOverride = isNaN(v) ? null : v;
   saveMonth();
+  saveMonthMeta();
   updateSummary();
 });
 
@@ -1499,6 +1531,9 @@ function xlsxToMonthArray(sheet, y, m){
           blocks.push({start:excelFracToTime(s.v), end:excelFracToTime(en.v), kind:'obiekt', komentarz:'', gapAfter:'dojazd'});
         }
       });
+      // Przedziały w pliku rozdziela tylko przerwa (eksport skleja bloki połączone dojazdem),
+      // a formuła w H nie liczy luk — więc luka między nimi to przerwa, nie dojazd.
+      for(let k=0; k<blocks.length-1; k++) blocks[k].gapAfter = 'przerwa';
       const iCell = get('I');
       const opisText = (iCell && iCell.v!=null) ? String(iCell.v).trim() : '';
       let dayType='praca', urlopKomentarz='';
@@ -1530,6 +1565,7 @@ document.getElementById('importFile').addEventListener('change', async (e)=>{
     const wb = XLSX.read(buf, {type:'array'});
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const arr = xlsxToMonthArray(sheet, curYear, curMonth);
+    arr._meta = monthData._meta;                    // ręczna norma to ustawienie miesiąca, nie ma jej w pliku
     monthData = arr;
     ensureMeta();
     saveMonth();
@@ -1670,15 +1706,16 @@ function buildSummarySheet(forUser){
       bars.push({ref: `C${r}`, color});
     }
   });
-  set('A11', 'Dni robocze (bez weekendów i świąt)', {t:'s'}); set('B11', workdaysCount(curYear, curMonth), {t:'n'});
-  set('A12', 'Norma godzin', {t:'s'}); time('B12', t.norma);
-  set('A13', 'Urlop (dni × 8h)', {t:'s'}); time('B13', t.urlopH); set('C13', t.urlopDays, {t:'n', z:'0" d"'});
-  set('A14', 'Do przepracowania', {t:'s'}); time('B14', t.wymagane);
+  set('A10', 'Przerwy (nie liczone)', {t:'s'}); time('B10', t.przerwa);
+  set('A12', 'Dni robocze (bez weekendów i świąt)', {t:'s'}); set('B12', workdaysCount(curYear, curMonth), {t:'n'});
+  set('A13', 'Norma godzin', {t:'s'}); time('B13', t.norma);
+  set('A14', 'Urlop (dni × 8h)', {t:'s'}); time('B14', t.urlopH); set('C14', t.urlopDays, {t:'n', z:'0" d"'});
+  set('A15', 'Do przepracowania', {t:'s'}); time('B15', t.wymagane);
   // Excel nie umie pokazać ujemnego czasu (####), więc bilans jest tekstem.
-  set('A15', 'Bilans (zaznaczone + dojazd − wymagane)', {t:'s'});
-  set('B15', t.bilans > 0 ? `+${fmtHM(t.bilans)} nadgodziny` : t.bilans < 0 ? `${fmtHM(t.bilans)} niedobór` : '0:00', {t:'s'});
+  set('A16', 'Bilans (zaznaczone + dojazd − wymagane)', {t:'s'});
+  set('B16', t.bilans > 0 ? `+${fmtHM(t.bilans)} nadgodziny` : t.bilans < 0 ? `${fmtHM(t.bilans)} niedobór` : '0:00', {t:'s'});
 
-  ws['!ref'] = 'A1:C15';
+  ws['!ref'] = 'A1:C16';
   ws['!cols'] = [{wch:42}, {wch:10}, {wch:24}];
   return {ws, bars};
 }
@@ -2088,9 +2125,11 @@ async function adminExport(a, u, e){
     if(!g || !g.ok) throw new Error('nie udało się odczytać karty');
     const n = daysInMonth(yy, mm);
     const arr = (g.value && g.value.trim()) ? migrateOld(JSON.parse(g.value), n) : blankMonth(n);
+    let meta = null;                                        // ręczna norma serwisanta — do arkusza „Podsumowanie”
+    try{ const gm = await api('admin.get', {id: u.id, key: metaKey(yy, mm)}); if(gm && gm.ok && gm.value) meta = JSON.parse(gm.value); }catch(e){}
     const saved = {d: monthData, y: curYear, m: curMonth};
     let built;
-    try{ monthData = arr; monthData._meta = {normaOverride: null}; curYear = yy; curMonth = mm; built = buildWorkbook(u); }
+    try{ monthData = arr; monthData._meta = Object.assign({normaOverride: null}, meta); curYear = yy; curMonth = mm; built = buildWorkbook(u); }
     finally{ monthData = saved.d; curYear = saved.y; curMonth = saved.m; }
     a.href = await uploadExport(built.wb, built.filename, u.id);
     a.dataset.ready = '1';

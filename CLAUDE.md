@@ -53,7 +53,10 @@ logowania.
 - Format danych: JSON per miesiąc pod kluczem
   `karta_godzin_v3_{rok}_{miesiąc}`; dzień = `{dayType, urlopKomentarz, nocna,
   blocks:[{start,end,kind,komentarz,gapAfter}]}` (`nocna` opcjonalne). Zmiana formatu = migracja istniejących
-  danych w Arkuszu, nie rób tego mimochodem.
+  danych w Arkuszu, nie rób tego mimochodem. Ustawienia miesiąca (od v1.6.1: ręczna norma) leżą OSOBNO pod
+  `karta_godzin_meta_{rok}_{miesiąc}` = JSON `{normaOverride}` (godziny albo null; brak klucza = norma domyślna),
+  bo JSON.stringify tablicy dni gubi pole `_meta`. Serwer tego klucza nie interpretuje (search/urlopYear/getMonths/
+  ukrywanie miesięcy patrzą tylko na klucze `karta_godzin_v3_R_M`); `loadMonth` = dni + meta, zapis `saveMonthMeta`.
 - `localStorage` to natychmiastowy bufor, `fetch` do Arkusza idzie w tle —
   appka ma działać offline.
 - Na iOS działają tylko prawdziwe natywne elementy: `<input type="file">`
@@ -71,7 +74,7 @@ logowania.
 - Paleta i styl: ciemny motyw, amber = akcja, zielony/czerwony = semantycznie
   (nadgodziny/niedobór), niebieski = wartości referencyjne.
 
-## Funkcje (stan: 01.10.2026, v1.6 — patrz też punkt KONTA w Otwartych tematach)
+## Funkcje (stan: 01.10.2026, v1.6.1 — patrz też punkt KONTA w Otwartych tematach)
 
 - Dzień = Praca albo Urlop (z komentarzem). Praca: bloki czasu z kategorią —
   Biuro, Obiekt, Wizja, Organizacja, Dojazd; komentarz per blok. Organizacja
@@ -110,13 +113,15 @@ logowania.
 - Import/eksport .xlsx (SheetJS z CDN). Bloki połączone dojazdem sklejają się
   w jeden przedział, rozdziela je tylko przerwa. Szablon ma 8 par od–do
   (`XLSX_SPAN_COLS`): stare B–G oraz dodatkowe U–AD za kolumną „Uwagi", żeby
-  stary układ i stare pliki dalej działały; formuła w H sumuje wszystkie.
+  stary układ i stare pliki dalej działały; formuła w H sumuje wszystkie. Import (od v1.6.1) ustawia lukę między
+  przedziałami jako przerwę — tak liczy H w Excelu; wcześniej była dojazdem i eksport→import zawyżał sumę.
 - Światełko statusu połączenia z Arkuszem (ping przy starcie).
 - Arkusz „Podsumowanie” w eksporcie MIESIĄCA (v1.6; drugi arkusz — import czyta pierwszy, więc „Arkusz1” musi
   zostać pierwszy): te same liczby co strona „Podsumowanie miesiąca” (`computeTotals`, `buildSummarySheet`) — strefy
   Biuro/Obiekt/Wizje lokalne/Organizacja/Dojazdy (czas [h]:mm + udział %), dni robocze, norma, urlop (dni × 8h), do
   przepracowania, bilans (tekst, bo Excel nie pokazuje ujemnego czasu; strefa wyłączona przełącznikiem ma dopisek
-  „nie liczone do bilansu”). Przerw nie ma (nie było ich na liście Szefa). Udział % ma natywne paski danych Excela w
+  „nie liczone do bilansu”), plus wiersz „Przerwy (nie liczone)” (dodany w v1.6.1 na prośbę Szefa). Norma = ręczna
+  norma miesiąca, jeśli ustawiona (eksport admina czyta normę serwisanta z jego klucza meta). Udział % ma natywne paski danych Excela w
   kolorach stref z appki: darmowy SheetJS nie zapisuje formatowania warunkowego, więc `addDataBars` dopisuje
   `conditionalFormatting` + rozszerzenie x14 (pełny kolor, skala 0–1) do XML arkusza w gotowym zipie (`XLSX.CFB`);
   wzór XML skopiowany z XlsxWritera, sprawdzony w LibreOffice Calc. Gdy to się nie uda — eksport bez pasków
@@ -146,10 +151,6 @@ logowania.
   „gdzie mogę coś urwać"); dziś ma % i paski per strefa.
 - Górny nagłówek (zakładki + widoki + panel) zajmuje na telefonie dużo ekranu —
   propozycja: zwijanie przy przewijaniu. Nieustalone, wymaga makiety.
-- Znalezione 01.10.2026 przy testach eksportu (NIE naprawione, czeka na decyzję Szefa): (1) import .xlsx tworzy
-  przedziały z luką „dojazd”, choć eksport rozdziela przedziały tylko przerwą — po eksporcie i imporcie appka liczy
-  przerwy jako pracę (test: +0:30); (2) ręczna „Norma godzin” (`_meta.normaOverride`) nie jest zapisywana —
-  `JSON.stringify` tablicy pomija `_meta`, po przeładowaniu wraca norma domyślna.
 - Średnia dzienna jest w formacie g:mm; Szef w rozmowie użył zapisu dziesiętnego
   (9,67) — zapytać, czy dopisać obok.
 - Statystyki per rok (agregacja miesięcy), a potem panel osobno per serwisant —
