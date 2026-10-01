@@ -388,8 +388,8 @@
     <button class="userchip" id="userChip" style="display:none;position:static;">—</button>
   </div>
   <div class="usermenu" id="userMenu"><button id="mnPin">Zmień PIN</button><button id="mnLogout">Wyloguj</button></div>
-  <h1>Karta godzin <span class="vertag">v1.5</span></h1>
-  <div class="who"><span id="whoName">—</span> · <span class="buildtag">30.09.2026 16:23</span></div>
+  <h1>Karta godzin <span class="vertag">v1.6</span></h1>
+  <div class="who"><span id="whoName">—</span> · <span class="buildtag">01.10.2026 10:51</span></div>
   <div class="rolesw" id="roleSw" style="display:none"><button id="swKarta" class="active">Karta</button><button id="swAdmin">Admin</button></div>
   <div class="monthbar">
     <button id="prevM">‹</button>
@@ -1635,16 +1635,117 @@ function buildSheet(forUser){
 function buildWorkbook(forUser){
   const ws = buildSheet(forUser);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Arkusz1');
+  XLSX.utils.book_append_sheet(wb, ws, 'Arkusz1');               // import czyta pierwszy arkusz — musi zostać pierwszy
+  const sum = buildSummarySheet(forUser);
+  XLSX.utils.book_append_sheet(wb, sum.ws, 'Podsumowanie');
+  if(sum.bars.length) wb.kgDataBars = {sheet: wb.SheetNames.length - 1, bars: sum.bars};
   const yy = String(curYear).slice(-2);
   const filename = `${curMonth}_${yy}_${forUser ? forUser.id : userId()}.xlsx`;
   return {wb, filename};
 }
 
+// Arkusz „Podsumowanie” (v1.6): te same liczby co strona „Podsumowanie miesiąca”
+// (computeTotals), udział stref z paskami danych Excela w kolorach stref z appki.
+const SUMMARY_ZONES = [
+  ['biuro', 'Biuro', '4D7EA8'], ['obiekt', 'Obiekt', 'C07A34'], ['wizja', 'Wizje lokalne', '7A5CA8'],
+  ['organizacja', 'Organizacja', '5A8A5A'], ['dojazd', 'Dojazdy', '4CAF7D']
+];
+function buildSummarySheet(forUser){
+  const t = computeTotals();
+  const ws = {}, bars = [];
+  const set = (addr, v, opts) => { ws[addr] = Object.assign({v}, opts||{}); };
+  const time = (addr, mins) => set(addr, mins/1440, {t:'n', z:'[h]:mm'});
+  const name = (forUser ? forUser.name : (auth && auth.user ? auth.user.name : '')).toUpperCase();
+
+  set('A1', `Podsumowanie miesiąca: ${MONTH_NAMES[curMonth-1]} ${curYear}`, {t:'s'});
+  if(name) set('A2', name, {t:'s'});
+  set('A4', 'Strefa', {t:'s'}); set('B4', 'Czas', {t:'s'}); set('C4', 'Udział', {t:'s'});
+  SUMMARY_ZONES.forEach(([k, label, color], i)=>{
+    const r = 5 + i;
+    const note = k === 'dojazd' ? ' (zawsze liczone)' : (settings[k] ? '' : ' (nie liczone do bilansu)');
+    set(`A${r}`, label + note, {t:'s'});
+    time(`B${r}`, t[k]);
+    if(t.worked > 0){                                             // jak w appce: bez czasu pracy nie ma udziałów
+      set(`C${r}`, t[k]/t.worked, {t:'n', z:'0%'});
+      bars.push({ref: `C${r}`, color});
+    }
+  });
+  set('A11', 'Dni robocze (bez weekendów i świąt)', {t:'s'}); set('B11', workdaysCount(curYear, curMonth), {t:'n'});
+  set('A12', 'Norma godzin', {t:'s'}); time('B12', t.norma);
+  set('A13', 'Urlop (dni × 8h)', {t:'s'}); time('B13', t.urlopH); set('C13', t.urlopDays, {t:'n', z:'0" d"'});
+  set('A14', 'Do przepracowania', {t:'s'}); time('B14', t.wymagane);
+  // Excel nie umie pokazać ujemnego czasu (####), więc bilans jest tekstem.
+  set('A15', 'Bilans (zaznaczone + dojazd − wymagane)', {t:'s'});
+  set('B15', t.bilans > 0 ? `+${fmtHM(t.bilans)} nadgodziny` : t.bilans < 0 ? `${fmtHM(t.bilans)} niedobór` : '0:00', {t:'s'});
+
+  ws['!ref'] = 'A1:C15';
+  ws['!cols'] = [{wch:42}, {wch:10}, {wch:24}];
+  return {ws, bars};
+}
+
+// Bajty gotowego pliku .xlsx. Darmowy SheetJS nie zapisuje formatowania warunkowego,
+// więc paski danych dopisujemy do XML arkusza w spakowanym pliku. Gdyby to się nie
+// udało, eksport i tak powstaje — tylko bez pasków.
+function workbookBytes(wb){
+  const bytes = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  if(!wb.kgDataBars) return bytes;
+  try{ return addDataBars(bytes, wb.kgDataBars.sheet, wb.kgDataBars.bars); }
+  catch(e){ console.warn('Eksport bez pasków danych:', e); return bytes; }
+}
+
+// Natywne paski danych Excela: pełny kolor (bez gradientu), skala stała 0–100%,
+// czyli długość paska = udział strefy, jak w appce. Wzór XML jak w plikach Excela 2010+.
+function addDataBars(bytes, sheetIdx, bars){
+  const CFB = XLSX.CFB;
+  const zip = CFB.read(new Uint8Array(bytes), {type:'array'});
+  const entry = CFB.find(zip, `/xl/worksheets/sheet${sheetIdx + 1}.xml`);
+  if(!entry || !entry.content) throw new Error('brak arkusza ' + (sheetIdx + 1));
+  let xml = new TextDecoder().decode(new Uint8Array(entry.content));
+  const X14 = 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main';
+  const id = i => `{DA7ABA51-AAAA-BBBB-0001-${String(i + 1).padStart(12, '0')}}`;
+  const cf = bars.map((b, i) => `<conditionalFormatting sqref="${b.ref}"><cfRule type="dataBar" priority="${i + 1}"><dataBar>`
+    + `<cfvo type="num" val="0"/><cfvo type="num" val="1"/><color rgb="FF${b.color}"/></dataBar>`
+    + `<extLst><ext xmlns:x14="${X14}" uri="{B025F937-C7B1-47D3-B67F-A62EFF666E3E}"><x14:id>${id(i)}</x14:id></ext></extLst>`
+    + `</cfRule></conditionalFormatting>`).join('');
+  const ext = `<extLst><ext xmlns:x14="${X14}" uri="{78C0D931-6437-407d-A8EE-F0AAD7539E65}"><x14:conditionalFormattings>`
+    + bars.map((b, i) => `<x14:conditionalFormatting xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main">`
+      + `<x14:cfRule type="dataBar" id="${id(i)}"><x14:dataBar minLength="0" maxLength="100" gradient="0">`
+      + `<x14:cfvo type="num"><xm:f>0</xm:f></x14:cfvo><x14:cfvo type="num"><xm:f>1</xm:f></x14:cfvo>`
+      + `<x14:negativeFillColor rgb="FFFF0000"/><x14:axisColor rgb="FF000000"/></x14:dataBar></x14:cfRule>`
+      + `<xm:sqref>${b.ref}</xm:sqref></x14:conditionalFormatting>`).join('')
+    + `</x14:conditionalFormattings></ext></extLst>`;
+  // Kolejność w XML arkusza jest sztywna: conditionalFormatting za sheetData/mergeCells,
+  // a przed pageMargins, ignoredErrors itd.; extLst zawsze na samym końcu.
+  const dataEnd = xml.indexOf('</sheetData>'), end = xml.lastIndexOf('</worksheet>');
+  if(dataEnd < 0 || end < 0 || xml.includes('<extLst')) throw new Error('nieznany układ arkusza');
+  const tail = xml.slice(dataEnd).search(/<(dataValidations|hyperlinks|printOptions|pageMargins|pageSetup|headerFooter|rowBreaks|colBreaks|customProperties|cellWatches|ignoredErrors|smartTags|drawing|legacyDrawing|legacyDrawingHF|picture|oleObjects|controls|webPublishItems|tableParts)\b/);
+  const at = tail < 0 ? end : dataEnd + tail;
+  xml = xml.slice(0, at) + cf + xml.slice(at, end) + ext + xml.slice(end);
+  entry.content = new TextEncoder().encode(xml);
+  entry.size = entry.content.length;
+  return CFB.write(zip, {fileType:'zip', type:'array'});
+}
+
+function bytesToBase64(bytes){
+  const u8 = new Uint8Array(bytes);
+  let s = '';
+  for(let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+// Pobranie pliku na komputerze — to samo, co robi XLSX.writeFile, ale z naszymi bajtami.
+function saveBytes(bytes, filename){
+  const url = URL.createObjectURL(new Blob([bytes], {type: XLSX_MIME}));
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+}
+
 // Eksport przez Apps Script: plik ląduje tymczasowo na Dysku pod właściwą nazwą,
 // a appka dostaje zwykły link do pobrania (działa też w Chrome na iOS).
 async function uploadExport(wb, filename, forId){
-  const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
+  const b64 = wb.kgDataBars ? bytesToBase64(workbookBytes(wb)) : XLSX.write(wb, {bookType:'xlsx', type:'base64'});
   const out = await api('export', {name: filename, b64: b64, forId: forId});
   if(out && out.error === 'forbidden') throw new Error('brak uprawnienia do eksportu');
   if(!out || !out.ok || !out.url) throw new Error((out && out.error) || 'brak linku');
@@ -1669,7 +1770,7 @@ document.getElementById('btnExport').addEventListener('click', async function(e)
     e.preventDefault();
     try{
       const {wb, filename} = buildWorkbook();
-      XLSX.writeFile(wb, filename);
+      saveBytes(workbookBytes(wb), filename);
     }catch(err){ alert('Eksport się nie udał: ' + err.message); }
     return;
   }
@@ -1689,7 +1790,7 @@ document.getElementById('btnExport').addEventListener('click', async function(e)
   try{
     const {wb, filename} = buildWorkbook();
     const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    const bytes = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const bytes = workbookBytes(wb);
     const file = new File([bytes], filename, {type: mime});
     if(navigator.canShare && navigator.canShare({files:[file]})){
       try{
